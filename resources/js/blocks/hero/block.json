@@ -1,0 +1,54 @@
+{
+    "name": "hero",
+    "label": "Первый экран",
+    "category": "layout",
+    "icon": "Star",
+    "description": "Крупный заголовок с кнопкой",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок",
+            "default": "Заголовок страницы"
+        },
+        "subtitle": {
+            "type": "textarea",
+            "label": "Подзаголовок",
+            "default": "Короткое описание того, о чём эта страница."
+        },
+        "button_label": {
+            "type": "text",
+            "label": "Текст кнопки",
+            "default": "Подробнее"
+        },
+        "button_url": {
+            "type": "url",
+            "label": "Ссылка кнопки",
+            "default": "#"
+        },
+        "background": {
+            "type": "color",
+            "label": "Фон",
+            "default": "#1f2937"
+        },
+        "image": {
+            "type": "image",
+            "label": "Фоновое изображение",
+            "default": ""
+        },
+        "align": {
+            "type": "select",
+            "label": "Выравнивание",
+            "default": "center",
+            "options": [
+                {
+                    "value": "left",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                }
+            ]
+        }
+    }
+}

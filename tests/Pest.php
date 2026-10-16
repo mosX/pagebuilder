@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\TenantRole;
+use App\Models\Tenant;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,7 +47,11 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function memberOf(Tenant $tenant, TenantRole $role = TenantRole::Owner): User
 {
-    // ..
+    $user = User::factory()->create();
+    $tenant->addMember($user, $role);
+    $user->switchTenant($tenant);
+
+    return $user;
 }

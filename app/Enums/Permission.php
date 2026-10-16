@@ -8,6 +8,7 @@ enum Permission: string
     case CompanyUpdate = 'company.update';
     case MembersView = 'members.view';
     case MembersManage = 'members.manage';
+    case SchemaManage = 'schema.manage';
     case ContentView = 'content.view';
     case ContentManage = 'content.manage';
 }

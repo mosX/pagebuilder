@@ -1,4 +1,3 @@
-import inertia from '@inertiajs/vite';
 import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
@@ -9,7 +8,13 @@ import { defineConfig, lazyPlugins } from 'vite-plus';
 export default defineConfig({
     plugins: lazyPlugins(() => [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.ts'],
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.ts',
+                'resources/js/site.ts',
+            ],
+            // Node SSR server for company sites: `npm run build:ssr` → bootstrap/ssr/site-ssr.js
+            ssr: 'resources/js/site-ssr.ts',
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {
@@ -17,7 +22,6 @@ export default defineConfig({
                 }),
             ],
         }),
-        inertia(),
         tailwindcss(),
         vue({
             template: {
@@ -32,6 +36,13 @@ export default defineConfig({
         }),
     ]),
     server: {
+        // Company sites load dev assets from their own subdomains.
+        cors: {
+            origin: [
+                /^https?:\/\/(?:[a-z0-9-]+\.)?pagebuilder(?:\.test)?(?::\d+)?$/,
+                /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/,
+            ],
+        },
         watch: {
             ignored: [
                 '**/.agents/**',

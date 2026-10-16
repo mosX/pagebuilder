@@ -1,0 +1,55 @@
+{
+    "name": "heading",
+    "label": "Заголовок",
+    "category": "text",
+    "icon": "EditPen",
+    "props": {
+        "text": {
+            "type": "text",
+            "label": "Текст",
+            "default": "Заголовок"
+        },
+        "level": {
+            "type": "select",
+            "label": "Уровень",
+            "default": "h2",
+            "options": [
+                {
+                    "value": "h1",
+                    "label": "H1"
+                },
+                {
+                    "value": "h2",
+                    "label": "H2"
+                },
+                {
+                    "value": "h3",
+                    "label": "H3"
+                },
+                {
+                    "value": "h4",
+                    "label": "H4"
+                }
+            ]
+        },
+        "align": {
+            "type": "select",
+            "label": "Выравнивание",
+            "default": "left",
+            "options": [
+                {
+                    "value": "left",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                },
+                {
+                    "value": "right",
+                    "label": "Справа"
+                }
+            ]
+        }
+    }
+}

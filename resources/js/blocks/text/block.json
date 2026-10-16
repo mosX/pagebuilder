@@ -1,0 +1,52 @@
+{
+    "name": "text",
+    "label": "Текст",
+    "category": "text",
+    "icon": "Document",
+    "description": "Абзацы текста",
+    "props": {
+        "text": {
+            "type": "textarea",
+            "label": "Текст",
+            "default": "Текст абзаца. Пустая строка начинает новый абзац."
+        },
+        "size": {
+            "type": "select",
+            "label": "Размер",
+            "default": "normal",
+            "options": [
+                {
+                    "value": "small",
+                    "label": "Мелкий"
+                },
+                {
+                    "value": "normal",
+                    "label": "Обычный"
+                },
+                {
+                    "value": "large",
+                    "label": "Крупный"
+                }
+            ]
+        },
+        "align": {
+            "type": "select",
+            "label": "Выравнивание",
+            "default": "left",
+            "options": [
+                {
+                    "value": "left",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                },
+                {
+                    "value": "right",
+                    "label": "Справа"
+                }
+            ]
+        }
+    }
+}

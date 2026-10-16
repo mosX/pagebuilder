@@ -1,0 +1,61 @@
+{
+    "name": "section",
+    "label": "Секция",
+    "category": "layout",
+    "icon": "Postcard",
+    "description": "Контейнер с фоном и отступами",
+    "children": true,
+    "props": {
+        "background": {
+            "type": "color",
+            "label": "Фон",
+            "default": ""
+        },
+        "padding": {
+            "type": "select",
+            "label": "Отступы",
+            "default": "medium",
+            "options": [
+                {
+                    "value": "none",
+                    "label": "Нет"
+                },
+                {
+                    "value": "small",
+                    "label": "Маленькие"
+                },
+                {
+                    "value": "medium",
+                    "label": "Средние"
+                },
+                {
+                    "value": "large",
+                    "label": "Большие"
+                }
+            ]
+        },
+        "width": {
+            "type": "select",
+            "label": "Ширина контента",
+            "default": "normal",
+            "options": [
+                {
+                    "value": "narrow",
+                    "label": "Узкая"
+                },
+                {
+                    "value": "normal",
+                    "label": "Обычная"
+                },
+                {
+                    "value": "wide",
+                    "label": "Широкая"
+                },
+                {
+                    "value": "full",
+                    "label": "Во всю ширину"
+                }
+            ]
+        }
+    }
+}

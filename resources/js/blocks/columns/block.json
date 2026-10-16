@@ -1,0 +1,48 @@
+{
+    "name": "columns",
+    "label": "Колонки",
+    "category": "layout",
+    "icon": "Grid",
+    "description": "Вложенные блоки в сетке",
+    "children": true,
+    "props": {
+        "columns": {
+            "type": "select",
+            "label": "Колонок",
+            "default": "2",
+            "options": [
+                {
+                    "value": "2",
+                    "label": "2"
+                },
+                {
+                    "value": "3",
+                    "label": "3"
+                },
+                {
+                    "value": "4",
+                    "label": "4"
+                }
+            ]
+        },
+        "gap": {
+            "type": "select",
+            "label": "Промежуток",
+            "default": "medium",
+            "options": [
+                {
+                    "value": "small",
+                    "label": "Маленький"
+                },
+                {
+                    "value": "medium",
+                    "label": "Средний"
+                },
+                {
+                    "value": "large",
+                    "label": "Большой"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,16 @@
+{
+    "name": "spacer",
+    "label": "Отступ",
+    "category": "media",
+    "icon": "Sort",
+    "props": {
+        "height": {
+            "type": "number",
+            "label": "Высота, px",
+            "default": 48,
+            "min": 8,
+            "max": 240,
+            "step": 8
+        }
+    }
+}

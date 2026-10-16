@@ -1,0 +1,56 @@
+{
+    "name": "button",
+    "label": "Кнопка",
+    "category": "text",
+    "icon": "Pointer",
+    "props": {
+        "label": {
+            "type": "text",
+            "label": "Текст",
+            "default": "Кнопка"
+        },
+        "url": {
+            "type": "url",
+            "label": "Ссылка",
+            "default": "#"
+        },
+        "variant": {
+            "type": "select",
+            "label": "Стиль",
+            "default": "primary",
+            "options": [
+                {
+                    "value": "primary",
+                    "label": "Основная"
+                },
+                {
+                    "value": "outline",
+                    "label": "Контурная"
+                },
+                {
+                    "value": "link",
+                    "label": "Ссылка"
+                }
+            ]
+        },
+        "align": {
+            "type": "select",
+            "label": "Выравнивание",
+            "default": "left",
+            "options": [
+                {
+                    "value": "left",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                },
+                {
+                    "value": "right",
+                    "label": "Справа"
+                }
+            ]
+        }
+    }
+}

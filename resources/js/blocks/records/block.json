@@ -1,0 +1,100 @@
+{
+    "name": "records",
+    "label": "Список записей",
+    "category": "data",
+    "icon": "List",
+    "description": "Записи из коллекции",
+    "data": "records",
+    "props": {
+        "collection": {
+            "type": "collection",
+            "label": "Коллекция",
+            "default": ""
+        },
+        "title": {
+            "type": "text",
+            "label": "Заголовок блока",
+            "default": ""
+        },
+        "subtitle_field": {
+            "type": "field",
+            "label": "Поле под заголовком",
+            "of": "collection",
+            "default": ""
+        },
+        "image_field": {
+            "type": "field",
+            "label": "Поле с изображением",
+            "of": "collection",
+            "fieldTypes": ["image"],
+            "default": ""
+        },
+        "filter_field": {
+            "type": "field",
+            "label": "Фильтр: поле",
+            "of": "collection",
+            "default": ""
+        },
+        "filter_value": {
+            "type": "text",
+            "label": "Фильтр: значение",
+            "default": "",
+            "help": "Для связей — название или id связанной записи, для «Да/Нет» — да или нет"
+        },
+        "sort": {
+            "type": "select",
+            "label": "Порядок",
+            "default": "newest",
+            "options": [
+                {
+                    "value": "newest",
+                    "label": "Сначала новые"
+                },
+                {
+                    "value": "oldest",
+                    "label": "Сначала старые"
+                },
+                {
+                    "value": "title",
+                    "label": "По названию"
+                }
+            ]
+        },
+        "limit": {
+            "type": "number",
+            "label": "Записей на странице",
+            "default": 6,
+            "min": 1,
+            "max": 24,
+            "step": 1
+        },
+        "paginate": {
+            "type": "boolean",
+            "label": "Постраничная навигация",
+            "default": false
+        },
+        "columns": {
+            "type": "select",
+            "label": "Колонок",
+            "default": "3",
+            "options": [
+                {
+                    "value": "1",
+                    "label": "1"
+                },
+                {
+                    "value": "2",
+                    "label": "2"
+                },
+                {
+                    "value": "3",
+                    "label": "3"
+                },
+                {
+                    "value": "4",
+                    "label": "4"
+                }
+            ]
+        }
+    }
+}

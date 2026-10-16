@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Enums\TenantRole;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Collections\PagesCollection;
 use Illuminate\Database\Seeder;
 
 /**
@@ -39,11 +40,12 @@ class SuperAdminSeeder extends Seeder
         );
 
         $tenant->addMember($user, TenantRole::Owner);
+        app(PagesCollection::class)->ensure($tenant);
 
         if (! $user->current_tenant_id) {
             $user->switchTenant($tenant);
         }
 
-        $this->command?->info("Super admin: {$email}".($user->wasRecentlyCreated ? " / {$password}" : ' (already existed, password unchanged)'));
+        $this->command->info("Super admin: {$email}".($user->wasRecentlyCreated ? " / {$password}" : ' (already existed, password unchanged)'));
     }
 }

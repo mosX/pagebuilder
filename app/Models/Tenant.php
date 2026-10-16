@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Enums\TenantRole;
+use App\Support\Collections\SchemaManager;
+use App\Support\Media\MediaLibrary;
+use App\Support\Tenancy\Subdomains;
 use Database\Factories\TenantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +33,12 @@ class Tenant extends Model
     {
         static::creating(function (Tenant $tenant) {
             $tenant->slug = $tenant->slug ?: static::uniqueSlug($tenant->name);
+        });
+
+        // Collection tables and stored files are not covered by foreign key cascades.
+        static::deleting(function (Tenant $tenant) {
+            app(SchemaManager::class)->dropTenant($tenant);
+            app(MediaLibrary::class)->deleteTenant($tenant);
         });
     }
 
@@ -65,9 +74,14 @@ class Tenant extends Model
         return $this->members()->wherePivot('role', TenantRole::Owner->value)->count();
     }
 
+    /**
+     * A free slug that is also a valid, non-reserved subdomain.
+     */
     public static function uniqueSlug(string $name, ?int $ignoreId = null): string
     {
-        $base = Str::slug($name) ?: 'company';
+        $base = trim(Str::limit(Str::slug($name), 55, ''), '-');
+        $base = Subdomains::isValid($base) ? $base : 'company'.($base !== '' ? '-'.$base : '');
+        $base = Subdomains::isValid($base) ? $base : 'company';
         $slug = $base;
         $i = 2;
 
@@ -76,5 +90,10 @@ class Tenant extends Model
         }
 
         return $slug;
+    }
+
+    public function siteUrl(): string
+    {
+        return Subdomains::siteUrl($this);
     }
 }

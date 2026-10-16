@@ -1,0 +1,70 @@
+{
+    "name": "record_field",
+    "label": "Поле записи",
+    "category": "record",
+    "icon": "Tickets",
+    "description": "Значение поля текущей записи (для шаблона страницы записи)",
+    "data": "record_field",
+    "props": {
+        "field": {
+            "type": "record_field",
+            "label": "Поле",
+            "default": ""
+        },
+        "style": {
+            "type": "select",
+            "label": "Вид",
+            "default": "text",
+            "options": [
+                {
+                    "value": "h1",
+                    "label": "Заголовок H1"
+                },
+                {
+                    "value": "h2",
+                    "label": "Заголовок H2"
+                },
+                {
+                    "value": "text",
+                    "label": "Текст"
+                },
+                {
+                    "value": "meta",
+                    "label": "Подпись"
+                },
+                {
+                    "value": "image",
+                    "label": "Изображение"
+                },
+                {
+                    "value": "tags",
+                    "label": "Метки (для связей)"
+                }
+            ]
+        },
+        "label": {
+            "type": "text",
+            "label": "Подпись перед значением",
+            "default": ""
+        },
+        "align": {
+            "type": "select",
+            "label": "Выравнивание",
+            "default": "left",
+            "options": [
+                {
+                    "value": "left",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                },
+                {
+                    "value": "right",
+                    "label": "Справа"
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,28 @@
+{
+    "name": "image",
+    "label": "Изображение",
+    "category": "media",
+    "icon": "Picture",
+    "props": {
+        "src": {
+            "type": "image",
+            "label": "Адрес изображения",
+            "default": ""
+        },
+        "alt": {
+            "type": "text",
+            "label": "Альтернативный текст",
+            "default": ""
+        },
+        "caption": {
+            "type": "text",
+            "label": "Подпись",
+            "default": ""
+        },
+        "rounded": {
+            "type": "boolean",
+            "label": "Скруглённые углы",
+            "default": true
+        }
+    }
+}
