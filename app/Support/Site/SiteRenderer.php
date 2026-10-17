@@ -32,6 +32,17 @@ class SiteRenderer
 
         $context = $site->context();
         $design = $this->design->present($site->settings);
+        $notFound = $page === null;
+
+        // The site's own "page not found", when the company built one.
+        if ($notFound && ! empty($site->settings->not_found)) {
+            $page = [
+                'title' => 'Страница не найдена',
+                'slug' => '404',
+                'description' => null,
+                'blocks' => $this->resolver->resolveTree($context, $site->settings->not_found),
+            ];
+        }
 
         $payload = [
             'site' => [
@@ -44,7 +55,7 @@ class SiteRenderer
                     'url' => $site->url('account'),
                     'login_url' => $site->url('account/login'),
                     'register_url' => $site->account['registration'] ? $site->url('account/register') : null,
-                    'member' => $site->member ? ['name' => $site->member->name, 'email' => $site->member->email] : null,
+                    'member' => $site->member ? ['name' => $site->member->name, 'email' => $site->member->email, 'profile' => (object) ($site->member->profile ?? [])] : null,
                 ] : null,
             ],
             'page' => $page,
@@ -59,8 +70,8 @@ class SiteRenderer
             'payload' => $payload,
             'html' => $this->ssr->render($payload),
             'design' => $design,
-            'meta' => $this->meta($site, $info['name'], $path, $page, $indexable),
-        ], $page ? 200 : 404);
+            'meta' => $this->meta($site, $info['name'], $path, $page, $indexable && ! $notFound),
+        ], $notFound ? 404 : 200);
     }
 
     /**

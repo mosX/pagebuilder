@@ -24,7 +24,7 @@ class SiteMemberController extends Controller
                 $query->where(fn (Builder $q) => $q->where('name', 'like', $like)->orWhere('email', 'like', $like));
             })
             ->latest('id')
-            ->paginate(25, ['id', 'name', 'email', 'email_verified_at', 'is_blocked', 'last_login_at', 'created_at']);
+            ->paginate(25, ['id', 'name', 'email', 'email_verified_at', 'profile', 'is_blocked', 'last_login_at', 'created_at']);
 
         return response()->json($members);
     }

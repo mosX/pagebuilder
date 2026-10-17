@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AccountLinkMail;
 use App\Mail\SiteMemberVerificationMail;
 use App\Models\SiteMember;
 use App\Support\Site\CurrentSite;
@@ -12,6 +13,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
@@ -31,6 +33,8 @@ use Throwable;
 class SiteAccountController extends Controller
 {
     public const MAX_LOGIN_ATTEMPTS = 5;
+
+    public const RESET_MINUTES = 60;
 
     public function __construct(
         private SiteResolver $sites,
@@ -52,7 +56,9 @@ class SiteAccountController extends Controller
                 'name' => $site->member->name,
                 'email' => $site->member->email,
                 'verified' => $site->member->email_verified_at !== null,
+                'profile' => (object) ($site->member->profile ?? []),
             ],
+            'profile_fields' => $site->account['profile_fields'],
             'submissions' => $this->accounts->submissions($site->tenant, $site->settings, $site->member),
             'actions' => [
                 'logout' => $site->url('account/logout'),
@@ -74,6 +80,7 @@ class SiteAccountController extends Controller
             'view' => 'login',
             'actions' => [
                 'login' => $site->url('account/login'),
+                'forgot' => $site->url('account/forgot'),
                 'register' => $site->account['registration'] ? $site->url('account/register') : null,
             ],
             'redirect' => $this->safeRedirect($site, $request->query('redirect')),
@@ -126,6 +133,7 @@ class SiteAccountController extends Controller
 
         return $this->page($request, $site, 'Регистрация', 'account/register', [
             'view' => 'register',
+            'profile_fields' => $site->account['profile_fields'],
             'actions' => [
                 'register' => $site->url('account/register'),
                 'login' => $site->url('account/login'),
@@ -147,8 +155,10 @@ class SiteAccountController extends Controller
                 Rule::unique('site_members', 'email')->where('tenant_id', $site->tenant->id),
             ],
             'password' => ['required', 'string', 'confirmed', Password::min(8)],
+            ...$this->accounts->profileRules($site->settings),
         ], [
             'email.unique' => 'Этот e-mail уже зарегистрирован. Войдите в аккаунт.',
+            'profile.*.regex' => 'Укажите номер телефона цифрами.',
         ]);
 
         $member = new SiteMember;
@@ -157,6 +167,7 @@ class SiteAccountController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
+            'profile' => $this->accounts->profileValues($site->settings, (array) $request->input('profile', [])),
         ])->save();
 
         $this->sendVerification($site, $member);
@@ -187,6 +198,9 @@ class SiteAccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'current_password' => ['nullable', 'required_with:password', 'string'],
             'password' => ['nullable', 'string', 'confirmed', Password::min(8)],
+            ...$this->accounts->profileRules($site->settings),
+        ], [
+            'profile.*.regex' => 'Укажите номер телефона цифрами.',
         ]);
 
         if (! empty($data['password'])) {
@@ -198,6 +212,7 @@ class SiteAccountController extends Controller
         }
 
         $member->name = $data['name'];
+        $member->profile = $this->accounts->profileValues($site->settings, (array) $request->input('profile', []));
         $member->save();
 
         return redirect($site->absolute($site->url('account')))->with('status', 'Профиль сохранён.');
@@ -216,11 +231,93 @@ class SiteAccountController extends Controller
         return redirect($site->absolute($site->url('account')))->with('status', 'Письмо для подтверждения отправлено ещё раз.');
     }
 
+    public function forgotForm(Request $request): Response
+    {
+        $site = $this->site($request);
+
+        return $this->page($request, $site, 'Восстановление пароля', 'account/forgot', [
+            'view' => 'forgot',
+            'actions' => [
+                'forgot' => $site->url('account/forgot'),
+                'login' => $site->url('account/login'),
+            ],
+        ]);
+    }
+
+    /**
+     * Sends a reset link; the answer is the same whether the address is registered or not.
+     */
+    public function forgot(Request $request): RedirectResponse
+    {
+        $site = $this->site($request);
+        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:255']]);
+        $member = SiteMember::query()->where('email', Str::lower($data['email']))->first();
+
+        if ($member && ! $member->is_blocked) {
+            $token = Str::random(64);
+            DB::table('site_member_password_resets')->upsert(
+                ['site_member_id' => $member->id, 'token_hash' => hash('sha256', $token), 'created_at' => now()],
+                ['site_member_id'],
+                ['token_hash', 'created_at'],
+            );
+
+            $url = $site->tenant->siteUrl().$site->url('account/reset/'.$token).'?email='.rawurlencode($member->email);
+
+            try {
+                Mail::to($member->email)->send(AccountLinkMail::passwordReset($site->tenant->name, $member->name, $url, self::RESET_MINUTES));
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return redirect($site->absolute($site->url('account/forgot')))
+            ->with('status', 'Если аккаунт с таким адресом есть, мы отправили на него письмо со ссылкой для сброса пароля.');
+    }
+
+    public function resetForm(Request $request): Response
+    {
+        $site = $this->site($request);
+        $token = (string) $request->route('token');
+
+        return $this->page($request, $site, 'Новый пароль', 'account/reset', [
+            'view' => 'reset',
+            'token' => $token,
+            'email' => $request->string('email')->limit(255, '')->toString(),
+            'actions' => ['reset' => $site->url('account/reset/'.$token)],
+        ]);
+    }
+
+    public function reset(Request $request): RedirectResponse
+    {
+        $site = $this->site($request);
+        $data = $request->validate([
+            'email' => ['required', 'string', 'email', 'max:255'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)],
+        ]);
+
+        $member = SiteMember::query()->where('email', Str::lower($data['email']))->first();
+        $row = $member ? DB::table('site_member_password_resets')->where('site_member_id', $member->id)->first() : null;
+        $valid = $member && $row && ! $member->is_blocked
+            && hash_equals((string) $row->token_hash, hash('sha256', (string) $request->route('token')))
+            && now()->subMinutes(self::RESET_MINUTES)->lessThan((string) $row->created_at);
+
+        if (! $valid) {
+            throw ValidationException::withMessages(['email' => 'Ссылка для сброса устарела или уже использована. Запросите новую.']);
+        }
+
+        DB::table('site_member_password_resets')->where('site_member_id', $member->id)->delete();
+        // The link came by e-mail, so the address is confirmed too.
+        $member->forceFill(['password' => $data['password'], 'email_verified_at' => $member->email_verified_at ?? now()])->save();
+        $this->signIn($request, $member);
+
+        return redirect($site->absolute($site->url('account')))->with('status', 'Пароль изменён.');
+    }
+
     public function verify(Request $request): RedirectResponse
     {
         $site = $this->site($request);
 
-        abort_unless($request->hasValidSignature(), 403, 'Ссылка устарела или повреждена.');
+        abort_unless($request->hasValidRelativeSignature(), 403, 'Ссылка устарела или повреждена.');
 
         $member = SiteMember::query()->findOrFail((int) $request->route('member'));
 
@@ -254,12 +351,14 @@ class SiteAccountController extends Controller
 
     private function sendVerification(CurrentSite $site, SiteMember $member): void
     {
-        // The link always leads to the company subdomain, also for sign-ups on the preview path.
-        $url = URL::temporarySignedRoute('site.host.account.verify', now()->addDays(3), [
+        // The link leads to the site's canonical address (own domain or subdomain), also for
+        // sign-ups on the preview path; the signature does not cover the host.
+        $path = URL::temporarySignedRoute('site.host.account.verify', now()->addDays(3), [
             'site' => $site->tenant->slug,
             'member' => $member->id,
             'hash' => sha1($member->email),
-        ]);
+        ], absolute: false);
+        $url = $site->tenant->siteUrl().$path;
 
         try {
             Mail::to($member->email)->send(new SiteMemberVerificationMail($site->tenant->name, $member->name, $url));
@@ -305,7 +404,7 @@ class SiteAccountController extends Controller
                     'errors' => (object) ($errors instanceof ViewErrorBag
                         ? array_map(fn (array $messages) => (string) ($messages[0] ?? ''), $errors->getBag('default')->toArray())
                         : []),
-                    'old' => (object) array_intersect_key(is_array($old) ? $old : [], array_flip(['name', 'email'])),
+                    'old' => (object) array_intersect_key(is_array($old) ? $old : [], array_flip(['name', 'email', 'profile'])),
                 ],
             ]],
         ], $path, indexable: false);

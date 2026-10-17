@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Delete, Plus } from '@element-plus/icons-vue';
+import { Delete, Message, Plus } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { onMounted, ref } from 'vue';
 import { useForm } from '@/composables/useForm';
 import { isValidationError, send } from '@/lib/http';
+import memberInvitations from '@/routes/api/member-invitations';
 import members from '@/routes/api/members';
 import type { MessageResponse, Option } from '@/types';
 
@@ -16,13 +17,25 @@ type Member = {
     can_manage: boolean;
 };
 
+type Invitation = {
+    id: number;
+    email: string;
+    role: Option;
+    invited_by: string | null;
+    expires_at: string;
+    expired: boolean;
+    can_manage: boolean;
+};
+
 type MembersResponse = {
     members: Member[];
+    invitations: Invitation[];
     can_manage: boolean;
     roles: Option[];
 };
 
 const list = ref<Member[]>([]);
+const invitations = ref<Invitation[]>([]);
 const canManage = ref(false);
 const roles = ref<Option[]>([]);
 const loading = ref(true);
@@ -31,8 +44,6 @@ const dialogOpen = ref(false);
 const form = useForm({
     email: '',
     role: 'viewer',
-    name: '',
-    password: '',
 });
 
 async function load() {
@@ -41,6 +52,7 @@ async function load() {
     try {
         const result = await send<MembersResponse>(members.index());
         list.value = result.members;
+        invitations.value = result.invitations;
         canManage.value = result.can_manage;
         roles.value = result.roles;
     } finally {
@@ -90,6 +102,22 @@ function changeRole(member: Member, role: string) {
 function removeMember(member: Member) {
     return rowAction(() => send<MessageResponse>(members.destroy(member.id)));
 }
+
+function resendInvitation(invitation: Invitation) {
+    return rowAction(() =>
+        send<MessageResponse>(memberInvitations.resend(invitation.id)),
+    );
+}
+
+function revokeInvitation(invitation: Invitation) {
+    return rowAction(() =>
+        send<MessageResponse>(memberInvitations.destroy(invitation.id)),
+    );
+}
+
+function date(value: string) {
+    return new Date(value).toLocaleDateString('ru-RU');
+}
 </script>
 
 <template>
@@ -102,7 +130,7 @@ function removeMember(member: Member) {
                 :icon="Plus"
                 @click="openDialog"
             >
-                Добавить
+                Пригласить
             </el-button>
         </div>
 
@@ -160,9 +188,74 @@ function removeMember(member: Member) {
             </el-table>
         </el-card>
 
+        <el-card
+            v-if="invitations.length"
+            shadow="never"
+            header="Приглашения"
+            body-class="!p-0"
+            class="mt-4"
+        >
+            <el-table :data="invitations" row-key="id">
+                <el-table-column prop="email" label="Email" min-width="220" />
+                <el-table-column label="Роль" width="160">
+                    <template #default="{ row }">
+                        <el-tag type="info">{{ row.role.label }}</el-tag>
+                    </template>
+                </el-table-column>
+                <el-table-column label="Статус" min-width="200">
+                    <template #default="{ row }">
+                        <el-tag v-if="row.expired" type="danger">
+                            Истекло
+                        </el-tag>
+                        <span v-else class="text-sm">
+                            Ждёт ответа до {{ date(row.expires_at) }}
+                        </span>
+                        <div
+                            v-if="row.invited_by"
+                            class="text-xs text-[var(--el-text-color-secondary)]"
+                        >
+                            Пригласил(а): {{ row.invited_by }}
+                        </div>
+                    </template>
+                </el-table-column>
+                <el-table-column width="120" align="right">
+                    <template #default="{ row }">
+                        <template v-if="row.can_manage">
+                            <el-tooltip content="Отправить ещё раз">
+                                <el-button
+                                    :icon="Message"
+                                    circle
+                                    plain
+                                    size="small"
+                                    @click="resendInvitation(row)"
+                                />
+                            </el-tooltip>
+                            <el-popconfirm
+                                :title="`Отозвать приглашение для ${row.email}?`"
+                                confirm-button-text="Отозвать"
+                                cancel-button-text="Отмена"
+                                width="260"
+                                @confirm="revokeInvitation(row)"
+                            >
+                                <template #reference>
+                                    <el-button
+                                        type="danger"
+                                        :icon="Delete"
+                                        circle
+                                        plain
+                                        size="small"
+                                    />
+                                </template>
+                            </el-popconfirm>
+                        </template>
+                    </template>
+                </el-table-column>
+            </el-table>
+        </el-card>
+
         <el-dialog
             v-model="dialogOpen"
-            title="Добавить пользователя"
+            title="Пригласить пользователя"
             width="480"
         >
             <el-form label-position="top" @submit.prevent="addMember">
@@ -179,25 +272,11 @@ function removeMember(member: Member) {
                         />
                     </el-select>
                 </el-form-item>
-
-                <el-divider content-position="left">
-                    Только для нового пользователя
-                </el-divider>
-                <p class="mb-3 text-xs text-[var(--el-text-color-secondary)]">
-                    Если пользователь с таким email уже зарегистрирован, он
-                    будет просто добавлен в компанию.
+                <p class="text-xs text-[var(--el-text-color-secondary)]">
+                    На этот адрес придёт письмо со ссылкой. Пользователь сам
+                    примет приглашение: войдёт в свой аккаунт или создаст новый.
+                    Ссылка действует 7 дней.
                 </p>
-                <el-form-item label="Имя" :error="form.errors.name">
-                    <el-input v-model="form.name" />
-                </el-form-item>
-                <el-form-item label="Пароль" :error="form.errors.password">
-                    <el-input
-                        v-model="form.password"
-                        type="password"
-                        autocomplete="new-password"
-                        show-password
-                    />
-                </el-form-item>
             </el-form>
 
             <template #footer>
@@ -207,7 +286,7 @@ function removeMember(member: Member) {
                     :loading="form.processing"
                     @click="addMember"
                 >
-                    Добавить
+                    Отправить приглашение
                 </el-button>
             </template>
         </el-dialog>

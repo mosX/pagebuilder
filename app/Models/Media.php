@@ -36,6 +36,14 @@ class Media extends Model
     }
 
     /**
+     * "image" for pictures, "document" for files to download.
+     */
+    public function kind(): string
+    {
+        return str_starts_with($this->mime_type, 'image/') ? 'image' : 'document';
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toApi(): array
@@ -45,6 +53,8 @@ class Media extends Model
             'url' => $this->url(),
             'name' => $this->original_name,
             'mime_type' => $this->mime_type,
+            'kind' => $this->kind(),
+            'extension' => strtolower(pathinfo($this->path, PATHINFO_EXTENSION)),
             'size' => $this->size,
             'width' => $this->width,
             'height' => $this->height,

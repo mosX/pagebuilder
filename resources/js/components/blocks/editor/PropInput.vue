@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Picture } from '@element-plus/icons-vue';
+import { Document, Picture } from '@element-plus/icons-vue';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { PropSchema } from '@/blocks/registry';
@@ -98,6 +98,28 @@ const recordFieldOptions = computed(() =>
         />
         <MediaPicker
             v-model="pickerOpen"
+            :selected-url="String(model ?? '')"
+            @pick="(item) => (model = item.url)"
+        />
+    </div>
+    <div v-else-if="schema.type === 'file'" class="flex w-full flex-col gap-2">
+        <div class="flex gap-2">
+            <el-button size="small" :icon="Document" @click="pickerOpen = true">
+                Документы
+            </el-button>
+            <el-button v-if="model" size="small" text @click="model = ''">
+                Убрать
+            </el-button>
+        </div>
+        <el-input
+            v-model="model as string"
+            size="small"
+            placeholder="или адрес https://…"
+            clearable
+        />
+        <MediaPicker
+            v-model="pickerOpen"
+            kind="document"
             :selected-url="String(model ?? '')"
             @pick="(item) => (model = item.url)"
         />

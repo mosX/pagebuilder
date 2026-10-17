@@ -173,7 +173,8 @@ test('visitors sign up, confirm the e-mail and see their own submissions', funct
         return $mail->hasTo('ivan@example.com');
     });
 
-    $this->get($url)->assertRedirect(acme('/account'));
+    // The link leads to the canonical (https) address of the site.
+    $this->get($url)->assertRedirect('https://acme.pagebuilder.test/account');
     expect($member->fresh()->email_verified_at)->not->toBeNull();
 
     // The guard keeps its instance between test requests; a real request loads it again.
@@ -216,7 +217,9 @@ test('sign-in checks the password, blocks and throttles', function () {
         $this->post(acme('/account/login'), ['email' => 'ivan@example.com', 'password' => 'wrong']);
     }
     $this->post(acme('/account/login'), ['email' => 'ivan@example.com', 'password' => 'secret-password'])
-        ->assertSessionHasErrors(['email' => 'Слишком много попыток входа. Попробуйте через 60 сек.']);
+        ->assertSessionHasErrors('email');
+    // The wait depends on the clock (59 or 60 s), the reason does not.
+    expect(session('errors')->first('email'))->toStartWith('Слишком много попыток входа.');
 });
 
 test('sign-in follows only redirects within the site', function () {
@@ -311,7 +314,7 @@ test('account settings keep only collections with an e-mail field of the company
         ->assertOk()
         ->assertJsonPath('languages', ['default' => 'ru', 'extra' => ['en']])
         ->assertJsonPath('account.registration', false)
-        ->assertJsonPath('account.collections', [['collection' => 'leads', 'email_field' => 'email']]);
+        ->assertJsonPath('account.collections', [['collection' => 'leads', 'email_field' => 'email', 'status_field' => null, 'notify' => false]]);
 
     // Sign-up is closed, sign-in is not.
     $this->get(acme('/account/register'))->assertNotFound();

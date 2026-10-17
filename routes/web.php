@@ -1,9 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\DomainController;
+use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\SiteAccountController;
+use App\Http\Controllers\SiteMapController;
 use App\Http\Controllers\SitePageController;
 use App\Support\Site\SiteLanguages;
+use App\Support\Tenancy\CustomDomains;
 use App\Support\Tenancy\Subdomains;
 use Illuminate\Support\Facades\Route;
 
@@ -31,13 +35,20 @@ $sitePages = function () {
         Route::post('profile', 'profile')->middleware('throttle:10,1')->name('profile');
         Route::post('verify', 'resendVerification')->middleware('throttle:3,10')->name('verify.resend');
         Route::get('verify/{member}/{hash}', 'verify')->whereNumber('member')->name('verify');
+        Route::get('forgot', 'forgotForm')->name('forgot');
+        Route::post('forgot', 'forgot')->middleware('throttle:5,10')->name('forgot.store');
+        Route::get('reset/{token}', 'resetForm')->where('token', '[A-Za-z0-9]{64}')->name('reset');
+        Route::post('reset/{token}', 'reset')->where('token', '[A-Za-z0-9]{64}')->middleware('throttle:10,1')->name('reset.store');
     });
 
+    // Pages and record pages are counted in visit statistics and served from the page cache to guests.
     Route::get('/{slug?}', [SitePageController::class, 'page'])
         ->where('slug', '[a-z0-9-]+')
+        ->middleware(['site.visit', 'site.cache'])
         ->name('page');
     Route::get('/{path}/{record}', [SitePageController::class, 'record'])
         ->where(['path' => '[a-z0-9-]+', 'record' => '[^/]+'])
+        ->middleware(['site.visit', 'site.cache'])
         ->name('record');
 };
 
@@ -51,8 +62,15 @@ $siteWithLanguages = function () use ($sitePages) {
     $sitePages();
 };
 
+// sitemap.xml and robots.txt at the root of a site (subdomain or own domain).
+$siteRoot = function () {
+    Route::get('sitemap.xml', [SiteMapController::class, 'sitemap'])->name('sitemap');
+    Route::get('robots.txt', [SiteMapController::class, 'robots'])->name('robots');
+};
+
 // Company sites, server-rendered: {slug}.{site_domain}/{page}.
-Route::domain('{site}.'.Subdomains::domain())->name('site.host.')->group(function () use ($siteWithLanguages) {
+Route::domain('{site}.'.Subdomains::domain())->name('site.host.')->group(function () use ($siteWithLanguages, $siteRoot) {
+    $siteRoot();
     $siteWithLanguages();
 
     // A company subdomain serves only its site, never the admin SPA.
@@ -60,6 +78,32 @@ Route::domain('{site}.'.Subdomains::domain())->name('site.host.')->group(functio
         ->where('any', '^(?!api/|sanctum/|storage/|build/|img/).*')
         ->name('missing');
 });
+
+// Companies' own domains (acme.com): any other host name with a top-level domain.
+// Unknown hosts get 404 from the controller; the admin's host and IPs never match.
+Route::domain('{host}')
+    ->where(['host' => app(CustomDomains::class)->routePattern()])
+    ->name('site.domain.')
+    ->group(function () use ($siteWithLanguages, $siteRoot) {
+        $siteRoot();
+        $siteWithLanguages();
+
+        Route::get('/{any}', [SitePageController::class, 'notFound'])
+            ->where('any', '^(?!api/|sanctum/|storage/|build/|img/).*')
+            ->name('missing');
+    });
+
+// The platform's own robots.txt: the admin is never indexed (sites answer above).
+Route::get('robots.txt', [SiteMapController::class, 'platformRobots'])->name('robots');
+
+// The link from the admin e-mail confirmation letter.
+Route::get('email/verify/{id}/{hash}', [PasswordController::class, 'verify'])
+    ->whereNumber('id')
+    ->middleware('throttle:10,1')
+    ->name('verification.verify');
+
+// Asked by the TLS proxy (Caddy on_demand_tls) before issuing a certificate for a host.
+Route::get('internal/tls-check', [DomainController::class, 'tlsCheck'])->name('domains.tls-check');
 
 // The same site on the platform domain, for previews without wildcard DNS.
 Route::prefix('site/{site}')->name('site.preview.')->group($siteWithLanguages);

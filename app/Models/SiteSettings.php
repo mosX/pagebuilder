@@ -13,6 +13,7 @@ use Illuminate\Support\Carbon;
  * @property array<int, array<string, mixed>>|null $menu
  * @property array<int, array<string, mixed>>|null $header
  * @property array<int, array<string, mixed>>|null $footer
+ * @property array<int, array<string, mixed>>|null $not_found
  * @property array<string, mixed>|null $languages
  * @property array<string, mixed>|null $account
  * @property string|null $logo
@@ -34,6 +35,7 @@ class SiteSettings extends Model
             'menu' => 'array',
             'header' => 'array',
             'footer' => 'array',
+            'not_found' => 'array',
             'languages' => 'array',
             'account' => 'array',
         ];

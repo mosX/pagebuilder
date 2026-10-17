@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\TenantRole;
 use App\Http\Controllers\Controller;
+use App\Mail\InvitationMail;
+use App\Models\Invitation;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
@@ -13,12 +15,12 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Users of the current company: invite (attach or create), change role, remove.
+ * Users of the current company: invitations, role changes, removal.
  */
 class MemberController extends Controller
 {
@@ -48,6 +50,16 @@ class MemberController extends Controller
 
         return response()->json([
             'members' => $members,
+            // Open invitations, for those who manage members.
+            'invitations' => $canManage ? Invitation::query()->with('inviter')->latest('id')->get()->map(fn (Invitation $invitation) => [
+                'id' => $invitation->id,
+                'email' => $invitation->email,
+                'role' => ['value' => $invitation->role->value, 'label' => $invitation->role->label()],
+                'invited_by' => $invitation->inviter?->name,
+                'expires_at' => $invitation->expires_at->toIso8601String(),
+                'expired' => $invitation->isExpired(),
+                'can_manage' => $actorRole->canAssign($invitation->role),
+            ]) : [],
             'can_manage' => $canManage,
             'roles' => array_values(array_filter(
                 TenantRole::options(),
@@ -56,6 +68,10 @@ class MemberController extends Controller
         ]);
     }
 
+    /**
+     * Invites a person by e-mail. They join by accepting the link themselves, so an admin
+     * can neither attach someone's existing account nor create an account for their address.
+     */
     public function store(Request $request): JsonResponse
     {
         $tenant = $this->context->tenant();
@@ -68,29 +84,55 @@ class MemberController extends Controller
         $role = TenantRole::from($data['role']);
         $this->ensureCanAssign($role);
 
-        $user = User::where('email', $data['email'])->first();
-
-        if ($user && $user->membershipIn($tenant)) {
+        if (User::where('email', $data['email'])->first()?->membershipIn($tenant)) {
             throw ValidationException::withMessages(['email' => 'Этот пользователь уже состоит в компании.']);
         }
 
-        if (! $user) {
-            $extra = $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'password' => ['required', 'string', Password::defaults()],
-            ]);
+        // Inviting the same address again renews the invitation.
+        $invitation = Invitation::query()->where('email', $data['email'])->first()
+            ?? (new Invitation)->forceFill(['email' => $data['email']]);
+        $invitation->forceFill(['tenant_id' => $tenant->id, 'role' => $role, 'invited_by' => $request->user()?->getAuthIdentifier()]);
+        $token = $invitation->refreshToken();
+        $invitation->save();
 
-            $user = User::create([
-                'name' => $extra['name'],
-                'email' => $data['email'],
-                'password' => $extra['password'],
-            ]);
-        }
+        $this->sendInvitation($request, $invitation, $token);
+        app(ActivityLog::class)->record('member.invited', $invitation->email, ['role' => $role->value]);
 
-        $tenant->addMember($user, $role);
-        app(ActivityLog::class)->record('member.added', $user->email, ['role' => $role->value]);
+        return response()->json(['message' => "Приглашение отправлено на {$invitation->email}."], 201);
+    }
 
-        return response()->json(['message' => "Пользователь {$user->email} добавлен в компанию."], 201);
+    public function resendInvitation(Request $request, Invitation $invitation): JsonResponse
+    {
+        $this->ensureCanAssign($invitation->role, 'invitation');
+
+        $token = $invitation->refreshToken();
+        $invitation->save();
+        $this->sendInvitation($request, $invitation, $token);
+
+        return response()->json(['message' => "Приглашение отправлено ещё раз на {$invitation->email}."]);
+    }
+
+    public function revokeInvitation(Invitation $invitation): JsonResponse
+    {
+        $this->ensureCanAssign($invitation->role, 'invitation');
+
+        $invitation->delete();
+        app(ActivityLog::class)->record('member.invitation_revoked', $invitation->email);
+
+        return response()->json(['message' => 'Приглашение отозвано.']);
+    }
+
+    private function sendInvitation(Request $request, Invitation $invitation, string $token): void
+    {
+        $user = $request->user();
+
+        Mail::to($invitation->email)->send(new InvitationMail(
+            $this->context->tenant()->name,
+            $user instanceof User ? $user->name : 'Администратор',
+            $invitation->role->label(),
+            $invitation->url($token),
+            Invitation::VALID_DAYS,
+        ));
     }
 
     public function update(Request $request, User $member): JsonResponse

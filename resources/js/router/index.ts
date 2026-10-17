@@ -27,6 +27,25 @@ export const router = createRouter({
                     meta: { guest: true, title: 'Регистрация' },
                 },
                 {
+                    // Open to guests and signed-in users: the page decides how to accept.
+                    path: 'invite/:token',
+                    name: 'invitation',
+                    component: () => import('@/pages/auth/Invitation.vue'),
+                    meta: { title: 'Приглашение' },
+                },
+                {
+                    path: 'forgot-password',
+                    name: 'password.forgot',
+                    component: () => import('@/pages/auth/ForgotPassword.vue'),
+                    meta: { guest: true, title: 'Восстановление пароля' },
+                },
+                {
+                    path: 'reset-password/:token',
+                    name: 'password.reset',
+                    component: () => import('@/pages/auth/ResetPassword.vue'),
+                    meta: { guest: true, title: 'Новый пароль' },
+                },
+                {
                     path: 'onboarding',
                     name: 'onboarding',
                     component: () =>
@@ -116,7 +135,7 @@ export const router = createRouter({
                     meta: { title: 'Сайт', permission: 'content.view' },
                 },
                 {
-                    path: 'site/:part(header|footer)',
+                    path: 'site/:part(header|footer|not-found)',
                     name: 'site.layout',
                     component: () =>
                         import('@/pages/admin/content/BlocksEditor.vue'),
@@ -124,6 +143,12 @@ export const router = createRouter({
                         title: 'Шапка и подвал',
                         permission: 'content.manage',
                     },
+                },
+                {
+                    path: 'stats',
+                    name: 'stats',
+                    component: () => import('@/pages/admin/stats/Index.vue'),
+                    meta: { title: 'Статистика', permission: 'content.view' },
                 },
                 {
                     path: 'visitors',

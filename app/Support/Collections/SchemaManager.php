@@ -211,7 +211,7 @@ class SchemaManager
         $column = match ($field->type) {
             FieldType::String, FieldType::Email, FieldType::Url, FieldType::Select => $table->string($name),
             FieldType::Text => $table->longText($name),
-            FieldType::Image => $table->string($name, 1024),
+            FieldType::Image, FieldType::File => $table->string($name, 1024),
             FieldType::Integer => $table->bigInteger($name),
             FieldType::Decimal => $table->decimal($name, 20, $field->scale()),
             FieldType::Boolean => $table->boolean($name),

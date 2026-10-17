@@ -41,6 +41,8 @@ class SitePresenter
 
         $rows = DB::table($collection->table_name)
             ->where('is_published', true)
+            ->when($collection->field(Scheduling::PAGES_FIELD), fn ($q) => Scheduling::released($q, Scheduling::PAGES_FIELD, $tenant->id))
+            ->when($collection->field('members_only'), fn ($q) => $q->where(fn ($q) => $q->where('members_only', false)->orWhereNull('members_only')))
             ->orderBy('id')
             ->get(['id', 'title', 'slug'])
             ->map(fn (object $row) => (array) $row)
@@ -63,7 +65,7 @@ class SitePresenter
         $collection = $this->pages->find($tenant);
 
         $page = $collection
-            ? (new RecordRepository($collection))->firstWhere([['slug', $slug], ['is_published', true]])
+            ? (new RecordRepository($collection))->firstWhere([['slug', $slug], ['is_published', true]], Scheduling::PAGES_FIELD)
             : null;
 
         if (! $collection || ! $page) {
@@ -103,7 +105,7 @@ class SitePresenter
         $record = $repository->firstWhere(array_filter([
             [$collection->site_slug_field ?: 'id', $slug],
             $collection->site_published_field ? [$collection->site_published_field, true] : null,
-        ]));
+        ]), $collection->site_publish_at_field);
 
         if (! $record) {
             return null;

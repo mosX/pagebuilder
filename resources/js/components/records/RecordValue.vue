@@ -5,7 +5,13 @@ import type { CollectionField, RecordValue, RelationValue } from '@/types';
 const props = defineProps<{
     field: CollectionField;
     value: RecordValue;
+    /** Download link of a private file from a site form. */
+    downloadUrl?: string | null;
 }>();
+
+const fileName = computed(() =>
+    typeof props.value === 'string' ? (props.value.split('/').pop() ?? '') : '',
+);
 
 const relations = computed<RelationValue[]>(() => {
     if (Array.isArray(props.value)) {
@@ -46,6 +52,20 @@ const text = computed(() => {
     >
         {{ Array.isArray(value) ? `Блоков: ${value.length}` : '—' }}
     </span>
+    <a
+        v-else-if="field.type === 'file' && value"
+        :href="
+            String(value).startsWith('private://')
+                ? (downloadUrl ?? undefined)
+                : String(value)
+        "
+        target="_blank"
+        rel="noopener"
+        class="text-[var(--el-color-primary)] hover:underline"
+        @click.stop
+    >
+        📎 {{ fileName }}
+    </a>
     <img
         v-else-if="field.type === 'image' && value"
         :src="String(value)"

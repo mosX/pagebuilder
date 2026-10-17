@@ -35,6 +35,6 @@
     <body class="font-body antialiased" style="{{ collect($design['vars'])->map(fn ($value, $name) => $name.': '.$value)->implode('; ') }}; background: var(--site-background); color: var(--site-text)">
         {{-- Server-rendered by the Node SSR server when it runs; otherwise rendered in the browser. --}}
         <div id="site" data-ssr="{{ $html ? '1' : '0' }}">{!! $html !!}</div>
-        <script>window.__SITE__ = {{ Js::from($payload) }};</script>
+        <script type="application/json" id="site-payload">{!! json_encode($payload, JSON_HEX_TAG | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}</script>
     </body>
 </html>

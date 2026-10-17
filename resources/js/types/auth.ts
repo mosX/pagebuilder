@@ -3,6 +3,7 @@ export type User = {
     name: string;
     email: string;
     is_super_admin: boolean;
+    email_verified: boolean;
 };
 
 export type Option = {

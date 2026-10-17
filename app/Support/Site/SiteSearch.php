@@ -70,6 +70,7 @@ class SiteSearch
 
         $rows = DB::table($collection->table_name)
             ->where('is_published', true)
+            ->when($collection->field(Scheduling::PAGES_FIELD), fn (Builder $q) => Scheduling::released($q, Scheduling::PAGES_FIELD, $site->tenant->id))
             // Pages for signed-in visitors are not revealed to guests, even by title.
             ->when($hasMembersOnly && ! $site->member, fn (Builder $q) => $q->where(fn (Builder $q) => $q->where('members_only', false)->orWhereNull('members_only')))
             ->orderBy('id')
@@ -161,8 +162,11 @@ class SiteSearch
         $like = '%'.addcslashes($query, '\\%_').'%';
         $published = $collection->site_published_field;
 
+        $releasedBy = $collection->site_publish_at_field ? $collection->field($collection->site_publish_at_field)?->column() : null;
+
         $ids = DB::table($collection->table_name)
             ->when($published, fn (Builder $q) => $q->where((string) $published, true))
+            ->when($releasedBy, fn (Builder $q) => Scheduling::released($q, (string) $releasedBy, $site->tenant->id))
             ->where(function (Builder $q) use ($columns, $like) {
                 foreach ($columns as $column) {
                     $q->orWhere($column, 'like', $like);
@@ -192,6 +196,7 @@ class SiteSearch
         $extra = $translated === [] ? [] : DB::table($collection->table_name)
             ->whereIn('id', $translated)
             ->when($published, fn (Builder $q) => $q->where((string) $published, true))
+            ->when($releasedBy, fn (Builder $q) => Scheduling::released($q, (string) $releasedBy, $site->tenant->id))
             ->pluck('id')
             ->map(fn (mixed $id) => (int) $id)
             ->all();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Support\Collections\PagesCollection;
 use App\Support\Site\CurrentSite;
 use App\Support\Site\SitePresenter;
+use App\Support\Site\SiteRedirects;
 use App\Support\Site\SiteRenderer;
 use App\Support\Site\SiteResolver;
 use App\Support\Site\SiteSearch;
@@ -24,6 +25,7 @@ class SitePageController extends Controller
         private SiteResolver $sites,
         private SitePresenter $presenter,
         private SiteRenderer $renderer,
+        private SiteRedirects $redirects,
     ) {}
 
     public function page(Request $request): Response|RedirectResponse
@@ -52,7 +54,7 @@ class SitePageController extends Controller
         return $this->renderPage($request, $site, is_string($slug) ? $slug : PagesCollection::HOME_SLUG);
     }
 
-    public function record(Request $request): Response
+    public function record(Request $request): Response|RedirectResponse
     {
         return $this->renderRecord($request, $this->sites->resolve($request), (string) $request->route('path'), (string) $request->route('record'));
     }
@@ -80,9 +82,15 @@ class SitePageController extends Controller
         ], 'search', indexable: false);
     }
 
-    public function notFound(): never
+    /**
+     * Any other address on a site: an old URL with a redirect, or the site's 404 page.
+     */
+    public function notFound(Request $request): Response|RedirectResponse
     {
-        abort(404);
+        $site = $this->sites->resolve($request, ignoreLocale: true);
+        $path = trim(rawurldecode($request->getPathInfo()), '/');
+
+        return $this->redirectFor($request, $site, $path) ?? $this->renderer->render($site, null, $path);
     }
 
     private function renderPage(Request $request, CurrentSite $site, string $slug): Response|RedirectResponse
@@ -98,14 +106,39 @@ class SitePageController extends Controller
             }
         }
 
-        return $this->renderer->render($site, $page, $slug === PagesCollection::HOME_SLUG ? '' : $slug);
+        $path = $slug === PagesCollection::HOME_SLUG ? '' : $slug;
+
+        return ($page === null ? $this->redirectFor($request, $site, $path) : null)
+            ?? $this->renderer->render($site, $page, $path);
     }
 
-    private function renderRecord(Request $request, CurrentSite $site, string $path, string $record): Response
+    private function renderRecord(Request $request, CurrentSite $site, string $path, string $record): Response|RedirectResponse
     {
         $page = $this->presenter->recordPage($site->tenant, $path, $record, $site->baseUrl, $this->listPage($request), $site->locale());
 
-        return $this->renderer->render($site, $page, "{$path}/{$record}");
+        return ($page === null ? $this->redirectFor($request, $site, "{$path}/".rawurldecode($record)) : null)
+            ?? $this->renderer->render($site, $page, "{$path}/{$record}");
+    }
+
+    /**
+     * A redirect for a missing address, kept in the visitor's language and with their query (utm…).
+     */
+    private function redirectFor(Request $request, CurrentSite $site, string $path): ?RedirectResponse
+    {
+        $redirect = $path === '' ? null : $this->redirects->match($site->tenant, "/{$path}");
+
+        if (! $redirect) {
+            return null;
+        }
+
+        if (! str_starts_with($redirect['to'], '/')) {
+            return redirect()->away($redirect['to'], $redirect['status']);
+        }
+
+        $query = $request->getQueryString();
+        $target = $site->url(ltrim($redirect['to'], '/'));
+
+        return redirect()->away($site->absolute($target.($query && ! str_contains($target, '?') ? "?{$query}" : '')), $redirect['status']);
     }
 
     private function listPage(Request $request): int

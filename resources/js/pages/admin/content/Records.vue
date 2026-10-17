@@ -107,6 +107,10 @@ onMounted(async () => {
         };
         editing.value = null;
         drawerOpen.value = true;
+    } else if (route.query.new) {
+        // "New page" and similar shortcuts: an empty record form.
+        editing.value = null;
+        drawerOpen.value = true;
     }
 });
 
@@ -303,7 +307,19 @@ async function remove(record: CollectionRecord) {
                     min-width="160"
                 >
                     <template #default="{ row }">
-                        <RecordValue :field="field" :value="row[field.name]" />
+                        <RecordValue
+                            :field="field"
+                            :value="row[field.name]"
+                            :download-url="
+                                field.type === 'file'
+                                    ? records.file({
+                                          collection: name,
+                                          record: row.id,
+                                          field: field.name,
+                                      }).url
+                                    : null
+                            "
+                        />
                     </template>
                 </el-table-column>
                 <el-table-column

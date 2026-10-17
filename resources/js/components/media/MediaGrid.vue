@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Search, UploadFilled } from '@element-plus/icons-vue';
+import { Document, Search, UploadFilled } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import type { UploadRequestOptions } from 'element-plus';
 import { onMounted, ref } from 'vue';
@@ -8,11 +8,23 @@ import media from '@/routes/api/media';
 import { useSessionStore } from '@/stores/session';
 import type { MediaItem, Paginated } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     /** Highlights the chosen item instead of opening its details. */
     selectable?: boolean;
     selectedUrl?: string | null;
+    /** Only images or only documents; everything when not set. */
+    kind?: 'image' | 'document';
 }>();
+
+const imageTypes = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
+const documentTypes =
+    '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.txt,.csv,.zip';
+const accept =
+    props.kind === 'image'
+        ? imageTypes
+        : props.kind === 'document'
+          ? documentTypes
+          : `${imageTypes},${documentTypes}`;
 
 const emit = defineEmits<{ open: [item: MediaItem] }>();
 
@@ -27,6 +39,7 @@ async function load(pageNumber = 1) {
     try {
         page.value = await send<Paginated<MediaItem>>(media.index(), {
             search: search.value || undefined,
+            kind: props.kind,
             page: pageNumber,
             per_page: 24,
         });
@@ -69,17 +82,24 @@ defineExpose({ reload: () => load(page.value?.current_page) });
                 drag
                 multiple
                 :show-file-list="false"
-                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                :accept="accept"
                 :http-request="upload"
                 class="w-full sm:w-80"
             >
                 <el-icon :size="32"><UploadFilled /></el-icon>
                 <div class="text-sm">
-                    Перетащите изображения или <em>выберите файлы</em>
+                    Перетащите файлы или <em>выберите их</em>
                 </div>
                 <template #tip>
                     <div class="text-xs text-[var(--el-text-color-secondary)]">
-                        JPG, PNG, WebP, GIF, AVIF — до 10 МБ
+                        <template v-if="kind !== 'document'"
+                            >Изображения JPG, PNG, WebP, GIF, AVIF — до 10
+                            МБ.</template
+                        >
+                        <template v-if="kind !== 'image'">
+                            Документы PDF, Word, Excel, PowerPoint, TXT, CSV,
+                            ZIP — до 20 МБ.</template
+                        >
                     </div>
                 </template>
             </el-upload>
@@ -110,11 +130,21 @@ defineExpose({ reload: () => load(page.value?.current_page) });
                 @click="emit('open', item)"
             >
                 <img
+                    v-if="item.kind === 'image'"
                     :src="item.url"
                     :alt="item.alt ?? ''"
                     loading="lazy"
                     class="aspect-square w-full bg-gray-100 object-cover"
                 />
+                <span
+                    v-else
+                    class="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-gray-50 text-gray-500"
+                >
+                    <el-icon :size="40"><Document /></el-icon>
+                    <span class="text-sm font-semibold uppercase">{{
+                        item.extension
+                    }}</span>
+                </span>
                 <span class="truncate px-2 py-1 text-xs" :title="item.name">
                     {{ item.name }}
                 </span>

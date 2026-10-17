@@ -79,10 +79,23 @@ async function remove(item: MediaItem) {
         >
             <div v-if="current" class="flex flex-col gap-4">
                 <img
+                    v-if="current.kind === 'image'"
                     :src="current.url"
                     :alt="current.alt ?? ''"
                     class="w-full rounded-md bg-gray-100"
                 />
+                <a
+                    v-else
+                    :href="current.url"
+                    target="_blank"
+                    class="flex items-center gap-3 rounded-md bg-gray-50 p-4 text-[var(--el-color-primary)] hover:underline"
+                >
+                    <span
+                        class="rounded bg-white px-2 py-1 text-sm font-semibold text-gray-600 uppercase"
+                        >{{ current.extension }}</span
+                    >
+                    Открыть документ
+                </a>
                 <el-descriptions :column="1" size="small" border>
                     <el-descriptions-item label="Имя">
                         {{ current.name }}
@@ -100,13 +113,21 @@ async function remove(item: MediaItem) {
 
                 <el-form label-position="top" @submit.prevent="saveAlt">
                     <el-form-item
-                        label="Альтернативный текст"
+                        :label="
+                            current.kind === 'image'
+                                ? 'Альтернативный текст'
+                                : 'Описание'
+                        "
                         :error="form.errors.alt"
                     >
                         <el-input
                             v-model="form.alt"
                             :disabled="!session.can('content.manage')"
-                            placeholder="Что изображено — для доступности и SEO"
+                            :placeholder="
+                                current.kind === 'image'
+                                    ? 'Что изображено — для доступности и SEO'
+                                    : 'Например, «Прайс-лист 2026»'
+                            "
                         />
                     </el-form-item>
                     <div class="flex gap-2">

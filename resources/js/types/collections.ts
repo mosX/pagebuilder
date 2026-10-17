@@ -6,6 +6,7 @@ export type FieldTypeValue =
     | 'email'
     | 'url'
     | 'image'
+    | 'file'
     | 'integer'
     | 'decimal'
     | 'boolean'
@@ -54,6 +55,8 @@ export type CollectionSchema = CollectionRef & {
         path: string | null;
         slug_field: string | null;
         published_field: string | null;
+        /** Date field: records appear on the site from this date. */
+        publish_at_field: string | null;
         url: string | null;
     };
     site_template?: BlockNode[];
@@ -84,6 +87,9 @@ export type MediaItem = {
     url: string;
     name: string;
     mime_type: string;
+    kind: 'image' | 'document';
+    /** File extension, e.g. "pdf". */
+    extension: string;
     size: number;
     width: number | null;
     height: number | null;

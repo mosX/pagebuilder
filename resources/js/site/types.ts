@@ -24,7 +24,12 @@ export type SiteInfo = {
         url: string;
         login_url: string;
         register_url: string | null;
-        member: { name: string; email: string } | null;
+        member: {
+            name: string;
+            email: string;
+            /** Extra profile fields of the site (phone…), for prefilling forms. */
+            profile?: Record<string, string>;
+        } | null;
     } | null;
 };
 

@@ -55,9 +55,17 @@ async function submit() {
                 />
             </el-form-item>
             <el-form-item>
-                <el-checkbox v-model="form.remember"
-                    >Запомнить меня</el-checkbox
-                >
+                <div class="flex w-full items-center justify-between">
+                    <el-checkbox v-model="form.remember"
+                        >Запомнить меня</el-checkbox
+                    >
+                    <router-link
+                        :to="{ name: 'password.forgot' }"
+                        class="text-sm text-[var(--el-color-primary)]"
+                    >
+                        Забыли пароль?
+                    </router-link>
+                </div>
             </el-form-item>
             <el-button
                 type="primary"

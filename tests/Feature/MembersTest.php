@@ -28,43 +28,10 @@ test('viewers cannot see the members list', function () {
         ->assertForbidden();
 });
 
-test('admins can create a new user in the company', function () {
+test('admins cannot invite with the owner role', function () {
     $this->actingAs(memberOf($this->tenant, TenantRole::Admin))
-        ->postJson(route('api.members.store'), [
-            'email' => 'new@example.com',
-            'name' => 'Newbie',
-            'password' => 'password',
-            'role' => 'editor',
-        ])->assertCreated();
-
-    $user = User::where('email', 'new@example.com')->firstOrFail();
-    expect($user->roleIn($this->tenant))->toBe(TenantRole::Editor);
-});
-
-test('a new user requires a name and password', function () {
-    $this->actingAs(memberOf($this->tenant))
-        ->postJson(route('api.members.store'), ['email' => 'new@example.com', 'role' => 'viewer'])
-        ->assertJsonValidationErrors(['name', 'password']);
-});
-
-test('an existing user is attached without name and password', function () {
-    $existing = User::factory()->create();
-
-    $this->actingAs(memberOf($this->tenant))
-        ->postJson(route('api.members.store'), ['email' => $existing->email, 'role' => 'viewer'])
-        ->assertCreated();
-
-    expect($existing->roleIn($this->tenant))->toBe(TenantRole::Viewer);
-});
-
-test('admins cannot grant the owner role', function () {
-    $this->actingAs(memberOf($this->tenant, TenantRole::Admin))
-        ->postJson(route('api.members.store'), [
-            'email' => 'boss@example.com',
-            'name' => 'Boss',
-            'password' => 'password',
-            'role' => 'owner',
-        ])->assertJsonValidationErrors('role');
+        ->postJson(route('api.members.store'), ['email' => 'boss@example.com', 'role' => 'owner'])
+        ->assertJsonValidationErrors('role');
 });
 
 test('editors cannot manage members', function () {

@@ -19,9 +19,13 @@ class ProfileController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            // The e-mail is the login: a stolen session must not be enough to take the account over.
+            'current_password' => [Rule::requiredIf($request->input('email') !== $user->email), 'nullable', 'current_password'],
+        ], [
+            'current_password.required' => 'Чтобы сменить e-mail, введите текущий пароль.',
         ]);
 
-        $user->update($data);
+        $user->update(['name' => $data['name'], 'email' => $data['email']]);
 
         return response()->json([
             'message' => 'Профиль сохранён.',

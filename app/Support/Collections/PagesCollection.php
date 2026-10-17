@@ -74,6 +74,8 @@ class PagesCollection
             ['name' => 'content', 'label' => 'Содержимое', 'type' => FieldType::Blocks],
             ['name' => 'is_published', 'label' => 'Опубликована', 'type' => FieldType::Boolean],
             ['name' => 'members_only', 'label' => 'Только для зарегистрированных', 'type' => FieldType::Boolean],
+            // Scheduled publishing: a published page appears on the site from this moment.
+            ['name' => 'publish_at', 'label' => 'Опубликовать с', 'type' => FieldType::DateTime],
         ];
     }
 

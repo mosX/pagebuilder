@@ -15,6 +15,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $email
  * @property Carbon|null $email_verified_at
+ * @property array<string, string>|null $profile
  * @property string $password
  * @property bool $is_blocked
  * @property string|null $remember_token
@@ -35,6 +36,7 @@ class SiteMember extends Authenticatable
         return [
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'profile' => 'array',
             'is_blocked' => 'boolean',
             'last_login_at' => 'datetime',
         ];

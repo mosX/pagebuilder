@@ -2,13 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FieldType;
 use App\Http\Controllers\Controller;
 use App\Models\Collection;
 use App\Models\CollectionField;
+use App\Models\RecordRevision;
 use App\Support\Audit\ActivityLog;
+use App\Support\Collections\RecordHistory;
 use App\Support\Collections\RecordRepository;
+use App\Support\Site\FormUploads;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Records of a collection, stored in the collection's own table.
@@ -37,6 +43,55 @@ class RecordController extends Controller
     public function show(Collection $collection, int $record): JsonResponse
     {
         return response()->json((new RecordRepository($collection))->find($record) ?? abort(404));
+    }
+
+    /**
+     * Versions of a record, newest first.
+     */
+    public function revisions(Collection $collection, int $record): JsonResponse
+    {
+        abort_unless((new RecordRepository($collection))->exists($record), 404);
+
+        $revisions = RecordRevision::query()
+            ->where('collection_id', $collection->id)
+            ->where('record_id', $record)
+            ->with('user')
+            ->latest('id')
+            ->get()
+            ->map(fn (RecordRevision $r) => [
+                'id' => $r->id,
+                'created_at' => $r->created_at?->toIso8601String(),
+                'author' => $r->user->name ?? $r->actor ?? 'Система',
+                'changes' => $r->changes,
+                'values' => $r->values,
+            ]);
+
+        return response()->json(['revisions' => $revisions]);
+    }
+
+    public function restore(Collection $collection, int $record, RecordRevision $revision, RecordHistory $history, ActivityLog $activity): JsonResponse
+    {
+        abort_unless($revision->record_id === $record, 404);
+
+        $restored = $history->restore($collection, $revision);
+        $activity->record('record.restored', "{$collection->label} #{$record}", ['revision' => $revision->id]);
+
+        return response()->json(['message' => 'Версия восстановлена.', 'record' => $restored]);
+    }
+
+    /**
+     * Downloads a file a visitor attached to a site form (private, admin only).
+     */
+    public function file(Collection $collection, int $record, string $field, FormUploads $uploads): StreamedResponse
+    {
+        $definition = $collection->field($field);
+        $value = $definition && $definition->type === FieldType::File
+            ? ((new RecordRepository($collection))->find($record)[$field] ?? null)
+            : null;
+
+        abort_unless(is_string($value) && $uploads->belongsTo($value, $collection->tenant_id), 404);
+
+        return Storage::disk(FormUploads::DISK)->download($uploads->path($value), $uploads->name($value));
     }
 
     /**

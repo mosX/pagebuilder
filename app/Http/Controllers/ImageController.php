@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use GdImage;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -13,8 +14,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  *
  * The copy is written to public/img/{width}/{path}, so the web server serves it directly
  * from then on and PHP only runs for the first request. Widths are limited to a fixed set,
- * so the cache cannot be filled with arbitrary sizes. Without GD (or for very large or
- * animated images) the original is served instead.
+ * so the cache cannot be filled with arbitrary sizes. Without GD, for very large or animated
+ * images, when the decoded image would not fit into PHP's memory limit, or while another
+ * request is resizing the same image, the original is served instead.
  */
 class ImageController extends Controller
 {
@@ -35,7 +37,7 @@ class ImageController extends Controller
         $source = $disk->path($path);
         $target = public_path("img/{$width}/{$path}");
 
-        if (! is_file($target) && ! $this->resize($source, $target, $width)) {
+        if (! is_file($target) && ! $this->resizeOnce($source, $target, $width)) {
             return redirect($disk->url($path), 302);
         }
 
@@ -55,6 +57,25 @@ class ImageController extends Controller
             && preg_match('#^[A-Za-z0-9/_-]+\.(jpe?g|png|webp|gif)$#i', $path) === 1;
     }
 
+    /**
+     * One request decodes an image at a time: parallel first views of a large picture
+     * would otherwise each take the memory of a full decode.
+     */
+    private function resizeOnce(string $source, string $target, int $width): bool
+    {
+        $lock = Cache::lock('img-resize:'.md5($target), 30);
+
+        if (! $lock->get()) {
+            return false;
+        }
+
+        try {
+            return is_file($target) || $this->resize($source, $target, $width);
+        } finally {
+            $lock->release();
+        }
+    }
+
     private function resize(string $source, string $target, int $width): bool
     {
         if (! extension_loaded('gd')) {
@@ -63,7 +84,8 @@ class ImageController extends Controller
 
         $info = @getimagesize($source);
 
-        if (! $info || $info[0] * $info[1] > self::MAX_PIXELS || $this->isAnimatedGif($source, $info[2])) {
+        if (! $info || $info[0] * $info[1] > self::MAX_PIXELS || ! $this->fitsInMemory($info[0], $info[1], $width)
+            || $this->isAnimatedGif($source, $info[2])) {
             return false;
         }
 
@@ -96,6 +118,45 @@ class ImageController extends Controller
             IMAGETYPE_WEBP => imagewebp($resized, $target, self::QUALITY),
             // Only GIF is left: the source was decoded by one of the four readers above.
             default => imagegif($resized, $target),
+        };
+    }
+
+    /**
+     * GD keeps 4 bytes per pixel for the original and the resized copy; with its overhead
+     * the decode needs about 1.8 times that. Checked against the memory still available.
+     */
+    public static function fitsInMemory(int $width, int $height, int $targetWidth, ?string $limit = null): bool
+    {
+        $limit = self::bytes($limit ?? (string) ini_get('memory_limit'));
+
+        if ($limit <= 0) {
+            return true;
+        }
+
+        $targetHeight = $width > 0 ? (int) ceil($height * min(1, $targetWidth / $width)) : 0;
+        $needed = (int) ((($width * $height) + (min($width, $targetWidth) * $targetHeight)) * 4 * 1.8);
+
+        return memory_get_usage() + $needed < $limit;
+    }
+
+    /**
+     * "256M" → bytes; -1 (unlimited) → -1.
+     */
+    private static function bytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '' || $value === '-1') {
+            return -1;
+        }
+
+        $number = (int) $value;
+
+        return match (strtolower(substr($value, -1))) {
+            'g' => $number * 1024 ** 3,
+            'm' => $number * 1024 ** 2,
+            'k' => $number * 1024,
+            default => $number,
         };
     }
 

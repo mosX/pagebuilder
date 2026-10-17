@@ -17,6 +17,8 @@ export type PropSchema = {
         | 'color'
         | 'url'
         | 'image'
+        /** A document from the media library (or any link) to download. */
+        | 'file'
         | 'collection'
         | 'field'
         | 'fields'

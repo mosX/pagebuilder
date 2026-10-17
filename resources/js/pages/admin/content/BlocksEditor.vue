@@ -74,7 +74,8 @@ const mode: Mode =
           : route.name === 'site.layout'
             ? 'layout'
             : 'field';
-const layoutPart = String(route.params.part ?? '');
+// Route param: header | footer | not-found (stored as layout:not_found).
+const layoutPart = String(route.params.part ?? '').replace('-', '_');
 const isTemplate = mode === 'template';
 const name = String(route.params.name ?? '');
 const recordId = Number(route.params.id);
@@ -133,7 +134,11 @@ const title = computed(() => {
     }
 
     if (mode === 'layout') {
-        return layoutPart === 'header' ? 'Шапка сайта' : 'Подвал сайта';
+        return layoutPart === 'header'
+            ? 'Шапка сайта'
+            : layoutPart === 'footer'
+              ? 'Подвал сайта'
+              : 'Страница 404';
     }
 
     const display = collection.value?.display_field;
@@ -154,7 +159,9 @@ const subtitle = computed(() => {
     }
 
     if (mode === 'layout') {
-        return 'Показывается на всех страницах сайта';
+        return layoutPart === 'not_found'
+            ? 'Показывается, когда страница не найдена'
+            : 'Показывается на всех страницах сайта';
     }
 
     return collection.value?.fields.find((f) => f.name === fieldName)?.label;

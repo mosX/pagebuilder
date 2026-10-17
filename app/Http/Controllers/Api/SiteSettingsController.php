@@ -56,6 +56,11 @@ class SiteSettingsController extends Controller
                         ->filter(fn (CollectionField $f) => in_array($f->type, [FieldType::Email, FieldType::String], true))
                         ->map(fn (CollectionField $f) => ['name' => $f->name, 'label' => $f->label, 'type' => $f->type->value])
                         ->values(),
+                    // List fields can be the status of a submission.
+                    'status_fields' => $c->fields
+                        ->filter(fn (CollectionField $f) => $f->type === FieldType::Select)
+                        ->map(fn (CollectionField $f) => ['name' => $f->name, 'label' => $f->label])
+                        ->values(),
                 ])
                 ->filter(fn (array $c) => $c['email_fields']->isNotEmpty())
                 ->values(),

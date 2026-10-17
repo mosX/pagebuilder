@@ -11,6 +11,7 @@ type Company = {
     id: number;
     name: string;
     slug: string;
+    timezone: string;
     site_url: string;
     created_at: string;
 };
@@ -21,25 +22,31 @@ const canUpdate = ref(false);
 // The site lives on {slug}{suffix}; both parts come from the server-built URL.
 const siteScheme = ref('https://');
 const siteSuffix = ref('');
+const timezones = ref<string[]>([]);
 
 const form = useForm({
     name: '',
     slug: '',
+    timezone: 'Europe/Moscow',
 });
 
 onMounted(async () => {
-    const result = await send<{ company: Company; can_update: boolean }>(
-        company.show(),
-    );
+    const result = await send<{
+        company: Company;
+        can_update: boolean;
+        timezones: string[];
+        site_domain: string;
+    }>(company.show());
 
     form.name = result.company.name;
     form.slug = result.company.slug;
+    form.timezone = result.company.timezone;
     form.defaults();
     canUpdate.value = result.can_update;
+    timezones.value = result.timezones;
 
-    const url = new URL(result.company.site_url);
-    siteScheme.value = `${url.protocol}//`;
-    siteSuffix.value = url.host.slice(result.company.slug.length);
+    siteScheme.value = `${new URL(result.company.site_url).protocol}//`;
+    siteSuffix.value = `.${result.site_domain}`;
     loading.value = false;
 });
 
@@ -75,6 +82,23 @@ async function submit() {
                     </el-input>
                     <div class="text-xs text-[var(--el-text-color-secondary)]">
                         Поддомен сайта компании: латиница, цифры и дефисы.
+                    </div>
+                </el-form-item>
+                <el-form-item
+                    label="Часовой пояс"
+                    :error="form.errors.timezone"
+                >
+                    <el-select v-model="form.timezone" filterable>
+                        <el-option
+                            v-for="zone in timezones"
+                            :key="zone"
+                            :label="zone"
+                            :value="zone"
+                        />
+                    </el-select>
+                    <div class="text-xs text-[var(--el-text-color-secondary)]">
+                        По этому времени срабатывает публикация по расписанию:
+                        даты в записях и страницах — местное время компании.
                     </div>
                 </el-form-item>
                 <el-button

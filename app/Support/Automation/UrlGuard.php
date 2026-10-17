@@ -50,9 +50,26 @@ class UrlGuard
 
     public function isPublic(string $ip): bool
     {
-        // IPv4 wrapped in IPv6 (::ffff:127.0.0.1) is checked as IPv4.
-        if (preg_match('/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i', $ip, $mapped)) {
-            $ip = $mapped[1];
+        $binary = @inet_pton($ip);
+
+        if ($binary === false) {
+            return false;
+        }
+
+        if (strlen($binary) === 16) {
+            // IPv4-mapped (::ffff:a.b.c.d) is checked as the IPv4 address it carries.
+            if (str_starts_with($binary, str_repeat("\0", 10)."\xff\xff")) {
+                return $this->isPublic((string) inet_ntop(substr($binary, 12)));
+            }
+
+            // Prefixes that route to an embedded IPv4 address are never allowed:
+            // IPv4-compatible ::/96, NAT64 64:ff9b::/96, 6to4 2002::/16, Teredo 2001::/32.
+            if (str_starts_with($binary, str_repeat("\0", 12))
+                || str_starts_with($binary, "\x00\x64\xff\x9b".str_repeat("\0", 8))
+                || str_starts_with($binary, "\x20\x02")
+                || str_starts_with($binary, "\x20\x01\x00\x00")) {
+                return false;
+            }
         }
 
         return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false

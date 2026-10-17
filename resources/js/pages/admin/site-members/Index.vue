@@ -12,6 +12,7 @@ type Visitor = {
     name: string;
     email: string;
     email_verified_at: string | null;
+    profile: Record<string, string> | null;
     is_blocked: boolean;
     last_login_at: string | null;
     created_at: string | null;
@@ -110,6 +111,12 @@ async function remove(visitor: Visitor) {
                             class="text-xs text-[var(--el-text-color-secondary)]"
                         >
                             {{ row.email }}
+                        </div>
+                        <div
+                            v-if="row.profile"
+                            class="text-xs text-[var(--el-text-color-secondary)]"
+                        >
+                            {{ Object.values(row.profile).join(' · ') }}
                         </div>
                     </template>
                 </el-table-column>

@@ -165,7 +165,7 @@ class BlockRegistry
             'boolean' => is_bool($value) ? $value : (bool) $default,
             'select' => in_array($value, array_column((array) ($prop['options'] ?? []), 'value'), true) ? $value : $default,
             'color' => is_string($value) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $value) ? $value : ($value === '' ? '' : $default),
-            'url', 'image' => is_string($value) ? $this->safeUrl($value) : $default,
+            'url', 'image', 'file' => is_string($value) ? $this->safeUrl($value) : $default,
             'pattern' => is_numeric($value) && (int) $value > 0 ? (int) $value : null,
             'collection' => is_string($value) && in_array($value, $collections, true) ? $value : '',
             'fields' => is_array($value) ? array_slice(array_values(array_unique(array_filter($value, fn ($v) => is_string($v) && preg_match('/^[a-z][a-z0-9_]{0,23}$/', $v)))), 0, 30) : [],
@@ -225,7 +225,7 @@ class BlockRegistry
     {
         $url = trim(Str::limit($url, 2048, ''));
 
-        if ($url === '' || str_starts_with($url, '#') || (str_starts_with($url, '/') && ! str_starts_with($url, '//'))) {
+        if ($url === '' || str_starts_with($url, '#') || (str_starts_with($url, '/') && ! str_starts_with($url, '//') && ! str_starts_with($url, '/\\'))) {
             return $url;
         }
 

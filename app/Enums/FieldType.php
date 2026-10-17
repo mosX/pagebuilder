@@ -13,6 +13,8 @@ enum FieldType: string
     case Email = 'email';
     case Url = 'url';
     case Image = 'image';
+    /** A document: a media library link, or a private upload from a site form. */
+    case File = 'file';
     case Integer = 'integer';
     case Decimal = 'decimal';
     case Boolean = 'boolean';
@@ -31,6 +33,7 @@ enum FieldType: string
             self::Email => 'Email',
             self::Url => 'Ссылка',
             self::Image => 'Изображение',
+            self::File => 'Файл',
             self::Integer => 'Целое число',
             self::Decimal => 'Дробное число',
             self::Boolean => 'Да / Нет',
@@ -47,7 +50,7 @@ enum FieldType: string
     {
         return match ($this) {
             self::String, self::Text, self::Email, self::Url => 'Текст',
-            self::Image => 'Контент',
+            self::Image, self::File => 'Контент',
             self::Integer, self::Decimal => 'Числа',
             self::Boolean, self::Date, self::DateTime, self::Select => 'Прочее',
             self::BelongsTo, self::BelongsToMany => 'Связи',
@@ -70,7 +73,7 @@ enum FieldType: string
 
     public function supportsUnique(): bool
     {
-        return ! $this->isRelation() && ! in_array($this, [self::Boolean, self::Text, self::Blocks, self::Image], true);
+        return ! $this->isRelation() && ! in_array($this, [self::Boolean, self::Text, self::Blocks, self::Image, self::File], true);
     }
 
     /**

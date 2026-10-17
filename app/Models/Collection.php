@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $site_path
  * @property string|null $site_slug_field
  * @property string|null $site_published_field
+ * @property string|null $site_publish_at_field
  * @property array<int, array<string, mixed>>|null $site_template
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at

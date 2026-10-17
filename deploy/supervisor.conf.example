@@ -1,0 +1,37 @@
+# Long-running processes of Pagebuilder, managed by supervisor.
+# Copy to /etc/supervisor/conf.d/pagebuilder.conf, adjust paths and user, then:
+#   supervisorctl reread && supervisorctl update
+
+# Queue: webhook deliveries, automations, mail.
+[program:pagebuilder-queue]
+command=php /var/www/pagebuilder/current/artisan queue:work --sleep=1 --tries=3 --max-time=3600
+user=www-data
+numprocs=2
+process_name=%(program_name)s_%(process_num)02d
+autostart=true
+autorestart=true
+stopwaitsecs=3600
+stdout_logfile=/var/www/pagebuilder/shared/storage/logs/queue.log
+redirect_stderr=true
+
+# SSR of company sites: renders pages to HTML for Laravel. Listens on 127.0.0.1 only.
+# Without it sites still work (they render in the browser), but search engines see less.
+[program:pagebuilder-ssr]
+command=node /var/www/pagebuilder/current/bootstrap/ssr/site-ssr.js
+directory=/var/www/pagebuilder/current
+environment=NODE_ENV="production",SITE_SSR_PORT="13714"
+user=www-data
+autostart=true
+autorestart=true
+stdout_logfile=/var/www/pagebuilder/shared/storage/logs/ssr.log
+redirect_stderr=true
+
+# Scheduler (activity log pruning). Alternatively a cron line:
+#   * * * * * www-data php /var/www/pagebuilder/current/artisan schedule:run >> /dev/null 2>&1
+[program:pagebuilder-schedule]
+command=php /var/www/pagebuilder/current/artisan schedule:work
+user=www-data
+autostart=true
+autorestart=true
+stdout_logfile=/var/www/pagebuilder/shared/storage/logs/schedule.log
+redirect_stderr=true

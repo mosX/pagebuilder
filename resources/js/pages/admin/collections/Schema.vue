@@ -68,6 +68,8 @@ async function load() {
             result.collection.name.replace(/_/g, '-');
         siteForm.site_slug_field = result.collection.site.slug_field ?? 'id';
         siteForm.site_published_field = result.collection.site.published_field;
+        siteForm.site_publish_at_field =
+            result.collection.site.publish_at_field;
         siteForm.defaults();
     } finally {
         loading.value = false;
@@ -100,6 +102,7 @@ const siteForm = useForm({
     site_path: '',
     site_slug_field: 'id' as string,
     site_published_field: null as string | null,
+    site_publish_at_field: null as string | null,
 });
 
 // Record URLs need a unique value: the id or a unique text/number field.
@@ -114,6 +117,13 @@ const booleanFields = computed(
     () => collection.value?.fields.filter((f) => f.type === 'boolean') ?? [],
 );
 
+const dateFields = computed(
+    () =>
+        collection.value?.fields.filter(
+            (f) => f.type === 'date' || f.type === 'datetime',
+        ) ?? [],
+);
+
 async function saveSite() {
     const payload = siteForm.enabled
         ? siteForm.data()
@@ -121,6 +131,7 @@ async function saveSite() {
               site_path: null,
               site_slug_field: null,
               site_published_field: null,
+              site_publish_at_field: null,
           };
 
     try {
@@ -428,6 +439,29 @@ function flags(field: CollectionField) {
                                         :value="f.name"
                                     />
                                 </el-select>
+                            </el-form-item>
+                            <el-form-item
+                                label="Публиковать по дате из поля"
+                                :error="siteForm.errors.site_publish_at_field"
+                            >
+                                <el-select
+                                    v-model="siteForm.site_publish_at_field"
+                                    clearable
+                                    placeholder="Сразу после сохранения"
+                                >
+                                    <el-option
+                                        v-for="f in dateFields"
+                                        :key="f.name"
+                                        :label="f.label"
+                                        :value="f.name"
+                                    />
+                                </el-select>
+                                <div
+                                    class="text-xs text-[var(--el-text-color-secondary)]"
+                                >
+                                    Запись с датой в будущем появится на сайте в
+                                    этот момент. Пустая дата — сразу.
+                                </div>
                             </el-form-item>
                         </template>
                         <div class="flex flex-wrap gap-2">

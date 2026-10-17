@@ -32,7 +32,7 @@ class SessionResource extends JsonResource
         $user = $this->resource;
 
         return [
-            'user' => $user->only(['id', 'name', 'email', 'is_super_admin']),
+            'user' => [...$user->only(['id', 'name', 'email', 'is_super_admin']), 'email_verified' => $user->email_verified_at !== null],
             'tenant' => $this->tenant ? $this->tenantState($user, $this->tenant) : null,
         ];
     }

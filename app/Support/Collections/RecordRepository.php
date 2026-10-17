@@ -11,6 +11,8 @@ use App\Models\CollectionField;
 use App\Models\Translation;
 use App\Support\Automation\AutomationDepth;
 use App\Support\Blocks\BlockRegistry;
+use App\Support\Site\FormUploads;
+use App\Support\Site\Scheduling;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
@@ -35,7 +37,7 @@ class RecordRepository
     }
 
     /**
-     * @param  array{search?: string|null, sort?: string|null, direction?: string|null, per_page?: int|null, page?: int|null, where?: array<int, array{0: string, 1: mixed}>}  $params
+     * @param  array{search?: string|null, sort?: string|null, direction?: string|null, per_page?: int|null, page?: int|null, where?: array<int, array{0: string, 1: mixed}>, released?: string|null}  $params
      * @return LengthAwarePaginator<int, array<string, mixed>>
      */
     public function paginate(array $params = []): LengthAwarePaginator
@@ -48,6 +50,8 @@ class RecordRepository
             // An unknown field must not silently widen the result.
             $field ? $this->applyFilter($query, $field, $value) : $query->whereRaw('1 = 0');
         }
+
+        $this->applyReleased($query, $params['released'] ?? null);
 
         if ($search = trim((string) ($params['search'] ?? ''))) {
             $searchable = $this->collection->fields->filter(fn (CollectionField $f) => $f->type->isSearchable());
@@ -94,11 +98,13 @@ class RecordRepository
      * The first record matching all conditions ([field name or "id", value] pairs).
      *
      * @param  array<int, array{0: string, 1: mixed}>  $where
+     * @param  string|null  $releasedBy  A date field: only records whose date is empty or has come.
      * @return array<string, mixed>|null
      */
-    public function firstWhere(array $where): ?array
+    public function firstWhere(array $where, ?string $releasedBy = null): ?array
     {
         $query = $this->query();
+        $this->applyReleased($query, $releasedBy);
 
         foreach ($where as [$name, $value]) {
             $field = $name === 'id' ? null : $this->collection->field($name);
@@ -113,6 +119,19 @@ class RecordRepository
         $row = $query->orderBy('id')->first();
 
         return $row ? $this->present(collect([$row]))->first() : null;
+    }
+
+    /**
+     * Scheduled publishing: keeps records whose date field is empty or already past.
+     * An unknown field is ignored (the schedule is optional).
+     */
+    private function applyReleased(Builder $query, ?string $name): void
+    {
+        $field = $name ? $this->collection->field($name) : null;
+
+        if ($field && in_array($field->type, [FieldType::Date, FieldType::DateTime], true)) {
+            Scheduling::released($query, (string) $field->column(), $this->collection->tenant_id);
+        }
     }
 
     /**
@@ -201,7 +220,7 @@ class RecordRepository
         ));
 
         if ($changes !== []) {
-            RecordUpdated::dispatch($this->collection, $record, $changes, AutomationDepth::current());
+            RecordUpdated::dispatch($this->collection, $record, $changes, AutomationDepth::current(), $before);
         }
 
         return $record;
@@ -214,6 +233,15 @@ class RecordRepository
         // Pivot rows go away through their cascading foreign keys.
         $this->query()->where('id', $id)->delete();
         Translation::withoutGlobalScope('tenant')->where('collection_id', $this->collection->id)->where('record_id', $id)->delete();
+        app(RecordHistory::class)->forget($this->collection, $id);
+
+        foreach ($this->collection->fields->where('type', FieldType::File) as $field) {
+            $value = $record[$field->name] ?? null;
+
+            if (is_string($value) && app(FormUploads::class)->belongsTo($value, $this->collection->tenant_id)) {
+                app(FormUploads::class)->delete($value);
+            }
+        }
 
         if ($record) {
             RecordDeleted::dispatch($this->collection, $record, [], AutomationDepth::current());
@@ -272,6 +300,8 @@ class RecordRepository
                 FieldType::Email => ['string', 'email', 'max:255'],
                 FieldType::Url => ['string', 'url', 'max:255'],
                 FieldType::Image => ['string', 'max:1024', fn (string $attribute, mixed $value, \Closure $fail) => is_string($value) && $this->blocks()->safeUrl($value) === $value ? null : $fail('Укажите адрес изображения (https://… или /storage/…).')],
+                // A link, or a private upload of this company (never a path into another one).
+                FieldType::File => ['string', 'max:1024', fn (string $attribute, mixed $value, \Closure $fail) => is_string($value) && ($this->blocks()->safeUrl($value) === $value || app(FormUploads::class)->belongsTo($value, $this->collection->tenant_id)) ? null : $fail('Укажите адрес файла.')],
                 FieldType::Integer => ['integer', 'between:-9007199254740991,9007199254740991'],
                 FieldType::Decimal => ['numeric', 'decimal:0,'.$field->scale()],
                 FieldType::Boolean => ['boolean'],

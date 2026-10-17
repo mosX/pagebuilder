@@ -15,13 +15,17 @@ class FormSubmissionController extends Controller
     public function __invoke(Request $request, Forms $forms): JsonResponse
     {
         $request->validate([
-            'token' => ['required', 'string', 'max:4000'],
+            'token' => ['required', 'string', 'max:8000'],
             'values' => ['present', 'array'],
+            'captcha' => ['nullable', 'string', 'max:4096'],
             // Honeypot: hidden from people, filled in by naive bots.
             'website' => ['prohibited'],
         ]);
 
-        $forms->submit($request->string('token')->value(), (array) $request->input('values'));
+        // Multipart submissions (with files) carry the uploads among the values.
+        $values = [...(array) $request->input('values'), ...(array) $request->file('values', [])];
+
+        $forms->submit($request->string('token')->value(), $values, $request->input('captcha'), $request->ip());
 
         return response()->json(['message' => 'Заявка отправлена.'], 201);
     }

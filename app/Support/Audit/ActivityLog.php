@@ -4,12 +4,14 @@ namespace App\Support\Audit;
 
 use App\Models\Activity;
 use App\Models\Tenant;
+use App\Support\Site\SiteCache;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Support\Str;
 
 /**
  * Writes the company's activity log: who changed what (schema, records, pages,
  * media, members, settings). Actions are short keys, e.g. "record.updated".
+ * Every logged change also makes the company's cached site pages stale.
  */
 class ActivityLog
 {
@@ -21,6 +23,14 @@ class ActivityLog
     public function actAs(?string $actor): void
     {
         $this->actor = $actor;
+    }
+
+    /**
+     * Who acts in this request when it is not a signed-in user (an API key).
+     */
+    public function actor(): ?string
+    {
+        return $this->actor;
     }
 
     /**
@@ -45,5 +55,7 @@ class ActivityLog
             'details' => $details ?: null,
             'ip' => $request->ip(),
         ])->save();
+
+        app(SiteCache::class)->flush($tenantId);
     }
 }

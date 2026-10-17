@@ -15,8 +15,10 @@ import {
     Odometer,
     OfficeBuilding,
     Picture,
+    Search,
     Setting,
     Tickets,
+    TrendCharts,
     User,
     UserFilled,
 } from '@element-plus/icons-vue';
@@ -24,6 +26,10 @@ import { ElMessage } from 'element-plus';
 import type { Component } from 'vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import CommandPalette from '@/components/CommandPalette.vue';
+import NewCompanyDialog from '@/components/NewCompanyDialog.vue';
+import { send } from '@/lib/http';
+import verificationRoutes from '@/routes/api/verification';
 import { useCollectionsStore } from '@/stores/collections';
 import { useSessionStore } from '@/stores/session';
 
@@ -37,6 +43,30 @@ const route = useRoute();
 const router = useRouter();
 const collapsed = ref(false);
 const switching = ref(false);
+const resending = ref(false);
+const newCompany = ref(false);
+const palette = ref<InstanceType<typeof CommandPalette> | null>(null);
+
+async function resendVerification() {
+    resending.value = true;
+
+    try {
+        const result = await send<{ message: string }>(
+            verificationRoutes.send(),
+        );
+        ElMessage.success(result.message);
+    } finally {
+        resending.value = false;
+    }
+}
+
+// Back from the confirmation link: refresh the session so the banner goes away.
+if (route.query.verified === '1') {
+    void session.load(true).then(() => {
+        ElMessage.success('E-mail подтверждён.');
+        void router.replace({ query: {} });
+    });
+}
 
 // Collections belong to the company, so reload them whenever the company changes.
 watch(
@@ -79,6 +109,11 @@ const groups = computed<MenuGroup[]>(() => {
                               path: '/admin/media',
                               label: 'Медиатека',
                               icon: Picture,
+                          },
+                          {
+                              path: '/admin/stats',
+                              label: 'Статистика',
+                              icon: TrendCharts,
                           },
                           {
                               path: '/admin/visitors',
@@ -191,6 +226,8 @@ async function onSwitchTenant(id: number) {
 async function onUserCommand(command: string) {
     if (command === 'profile') {
         await router.push({ name: 'profile' });
+    } else if (command === 'company') {
+        newCompany.value = true;
     } else if (command === 'logout') {
         await session.logout();
         await router.push({ name: 'login' });
@@ -244,6 +281,24 @@ async function onUserCommand(command: string) {
                     </el-icon>
                 </el-button>
 
+                <el-button
+                    v-if="session.tenant"
+                    class="!hidden sm:!inline-flex"
+                    :icon="Search"
+                    @click="palette?.show()"
+                >
+                    Поиск
+                    <kbd
+                        class="ml-2 rounded border px-1 text-xs text-[var(--el-text-color-secondary)]"
+                        >Ctrl K</kbd
+                    >
+                </el-button>
+                <CommandPalette
+                    v-if="session.tenant"
+                    ref="palette"
+                    :sections="groups.flatMap((g) => g.items)"
+                />
+
                 <el-select
                     v-if="session.tenant"
                     :model-value="session.tenant.current.id"
@@ -296,15 +351,38 @@ async function onUserCommand(command: string) {
                             <el-dropdown-item command="profile">
                                 Профиль
                             </el-dropdown-item>
+                            <el-dropdown-item command="company">
+                                Новая компания
+                            </el-dropdown-item>
                             <el-dropdown-item command="logout" divided>
                                 Выйти
                             </el-dropdown-item>
                         </el-dropdown-menu>
                     </template>
                 </el-dropdown>
+                <NewCompanyDialog v-model="newCompany" />
             </el-header>
 
             <el-main class="bg-[var(--el-bg-color-page)]">
+                <el-alert
+                    v-if="session.user && !session.user.email_verified"
+                    type="warning"
+                    :closable="false"
+                    class="mb-4"
+                >
+                    <template #title>
+                        Подтвердите e-mail {{ session.user.email }} по ссылке из
+                        письма — без этого не получится восстановить пароль.
+                        <el-button
+                            link
+                            type="primary"
+                            :loading="resending"
+                            @click="resendVerification"
+                        >
+                            Отправить письмо ещё раз
+                        </el-button>
+                    </template>
+                </el-alert>
                 <!-- Re-mount pages after a company switch so they reload their data. -->
                 <router-view
                     :key="`${session.tenant?.current.id}:${route.fullPath}`"

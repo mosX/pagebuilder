@@ -4,7 +4,10 @@ import { ElMessage } from 'element-plus';
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import MediaPicker from '@/components/media/MediaPicker.vue';
+import DomainsPanel from '@/components/site/DomainsPanel.vue';
 import MenuEditor from '@/components/site/MenuEditor.vue';
+import RedirectsPanel from '@/components/site/RedirectsPanel.vue';
+import TemplatesPanel from '@/components/site/TemplatesPanel.vue';
 import type { MenuItem } from '@/components/site/MenuEditor.vue';
 import { useForm } from '@/composables/useForm';
 import { send } from '@/lib/http';
@@ -26,13 +29,25 @@ type Languages = { default: string; extra: string[] };
 type Account = {
     enabled: boolean;
     registration: boolean;
-    collections: { collection: string; email_field: string }[];
+    collections: {
+        collection: string;
+        email_field: string;
+        status_field: string | null;
+        notify: boolean;
+    }[];
+    profile_fields: {
+        name: string;
+        label: string;
+        type: string;
+        required: boolean;
+    }[];
 };
 
 type AccountCollection = {
     name: string;
     label: string;
     email_fields: { name: string; label: string; type: string }[];
+    status_fields: { name: string; label: string }[];
 };
 
 type Settings = {
@@ -76,7 +91,12 @@ const form = useForm({
     logo: null as string | null,
     favicon: null as string | null,
     languages: { default: 'ru', extra: [] } as Languages,
-    account: { enabled: false, registration: true, collections: [] } as Account,
+    account: {
+        enabled: false,
+        registration: true,
+        collections: [],
+        profile_fields: [],
+    } as Account,
 });
 
 /** Additional languages with names, for menu labels. */
@@ -103,9 +123,36 @@ function addAccountCollection() {
                     ?.name ??
                 collection?.email_fields[0]?.name ??
                 '',
+            status_field: collection?.status_fields[0]?.name ?? null,
+            notify: false,
         },
     ];
 }
+
+function statusFields(name: string) {
+    return (
+        accountCollections.value.find((c) => c.name === name)?.status_fields ??
+        []
+    );
+}
+
+const layoutParts = [
+    {
+        key: 'header',
+        label: 'Шапка',
+        text: 'Собирается в конструкторе из любых блоков. Блоки «Логотип» и «Меню» в группе «Сайт» берут данные из настроек.',
+    },
+    {
+        key: 'footer',
+        label: 'Подвал',
+        text: 'Показывается внизу каждой страницы. Собирается так же, как шапка.',
+    },
+    {
+        key: 'not-found',
+        label: 'Страница 404',
+        text: 'Показывается, когда страницы нет. Пока она пустая, на сайте стандартная надпись «Страница не найдена».',
+    },
+];
 
 const radii = [
     { value: 'none', label: 'Без скруглений', css: '0' },
@@ -482,6 +529,31 @@ function pick(url: string) {
                                                 :value="field.name"
                                             />
                                         </el-select>
+                                        <el-select
+                                            v-model="item.status_field"
+                                            clearable
+                                            placeholder="Статус"
+                                            class="!w-40"
+                                            @change="
+                                                !item.status_field &&
+                                                (item.notify = false)
+                                            "
+                                        >
+                                            <el-option
+                                                v-for="field in statusFields(
+                                                    item.collection,
+                                                )"
+                                                :key="field.name"
+                                                :label="field.label"
+                                                :value="field.name"
+                                            />
+                                        </el-select>
+                                        <el-checkbox
+                                            v-model="item.notify"
+                                            :disabled="!item.status_field"
+                                        >
+                                            письмо о смене статуса
+                                        </el-checkbox>
                                         <el-button
                                             :icon="Delete"
                                             link
@@ -508,6 +580,83 @@ function pick(url: string) {
                                     </el-button>
                                 </div>
                             </el-form-item>
+                            <el-form-item label="Дополнительные поля профиля">
+                                <div class="flex w-full flex-col gap-2">
+                                    <div
+                                        v-for="(field, index) in form.account
+                                            .profile_fields"
+                                        :key="index"
+                                        class="flex flex-wrap items-center gap-2"
+                                    >
+                                        <el-input
+                                            v-model="field.label"
+                                            placeholder="Название, например «Телефон»"
+                                            class="!w-56"
+                                        />
+                                        <el-input
+                                            v-model="field.name"
+                                            placeholder="phone"
+                                            class="!w-32"
+                                        />
+                                        <el-select
+                                            v-model="field.type"
+                                            class="!w-32"
+                                        >
+                                            <el-option
+                                                label="Текст"
+                                                value="text"
+                                            />
+                                            <el-option
+                                                label="Телефон"
+                                                value="phone"
+                                            />
+                                        </el-select>
+                                        <el-checkbox v-model="field.required">
+                                            обязательное
+                                        </el-checkbox>
+                                        <el-button
+                                            :icon="Delete"
+                                            link
+                                            type="danger"
+                                            @click="
+                                                form.account.profile_fields =
+                                                    form.account.profile_fields.filter(
+                                                        (_, i) => i !== index,
+                                                    )
+                                            "
+                                        />
+                                    </div>
+                                    <el-button
+                                        :icon="Plus"
+                                        size="small"
+                                        class="self-start"
+                                        :disabled="
+                                            form.account.profile_fields
+                                                .length >= 6
+                                        "
+                                        @click="
+                                            form.account.profile_fields = [
+                                                ...form.account.profile_fields,
+                                                {
+                                                    name: '',
+                                                    label: '',
+                                                    type: 'text',
+                                                    required: false,
+                                                },
+                                            ]
+                                        "
+                                    >
+                                        Поле
+                                    </el-button>
+                                    <div
+                                        class="text-xs text-[var(--el-text-color-secondary)]"
+                                    >
+                                        Код поля — латиницей. Если он совпадает
+                                        с полем формы (например, phone), форма
+                                        подставит значение вошедшего посетителя.
+                                    </div>
+                                </div>
+                            </el-form-item>
                         </template>
                     </el-form>
                     <div
@@ -530,23 +679,31 @@ function pick(url: string) {
                 </el-card>
             </el-tab-pane>
 
-            <el-tab-pane label="Шапка и подвал" name="layout">
-                <div class="grid gap-4 md:grid-cols-2">
+            <el-tab-pane label="Шаблоны" name="templates" lazy>
+                <TemplatesPanel :can-edit="canEdit" />
+            </el-tab-pane>
+
+            <el-tab-pane label="Редиректы" name="redirects" lazy>
+                <RedirectsPanel :can-edit="session.can('content.manage')" />
+            </el-tab-pane>
+
+            <el-tab-pane label="Домены" name="domains" lazy>
+                <DomainsPanel :can-edit="canEdit" />
+            </el-tab-pane>
+
+            <el-tab-pane label="Шапка, подвал, 404" name="layout">
+                <div class="grid gap-4 md:grid-cols-3">
                     <el-card
-                        v-for="part in ['header', 'footer'] as const"
-                        :key="part"
+                        v-for="part in layoutParts"
+                        :key="part.key"
                         shadow="never"
                     >
                         <div class="flex flex-col gap-3">
-                            <div class="font-medium">
-                                {{ part === 'header' ? 'Шапка' : 'Подвал' }}
-                            </div>
+                            <div class="font-medium">{{ part.label }}</div>
                             <p
                                 class="text-sm text-[var(--el-text-color-secondary)]"
                             >
-                                Собирается в конструкторе из любых блоков. Блоки
-                                «Логотип» и «Меню» в группе «Сайт» берут данные
-                                из настроек.
+                                {{ part.text }}
                             </p>
                             <el-button
                                 :icon="Edit"
@@ -555,7 +712,7 @@ function pick(url: string) {
                                 @click="
                                     router.push({
                                         name: 'site.layout',
-                                        params: { part },
+                                        params: { part: part.key },
                                     })
                                 "
                             >

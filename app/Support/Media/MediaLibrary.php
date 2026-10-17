@@ -21,7 +21,17 @@ class MediaLibrary
      */
     public const MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'];
 
+    public const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'];
+
+    /**
+     * Documents for download. No HTML, SVG or scripts: uploads are served from our origin
+     * (with nosniff, so text files are never rendered as pages).
+     */
+    public const DOCUMENT_EXTENSIONS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf', 'txt', 'csv', 'zip'];
+
     public const MAX_KILOBYTES = 10240;
+
+    public const MAX_DOCUMENT_KILOBYTES = 20480;
 
     public function disk(): string
     {
@@ -40,7 +50,7 @@ class MediaLibrary
             throw new \RuntimeException('The file could not be stored.');
         }
 
-        $dimensions = @getimagesize($file->getRealPath()) ?: [null, null];
+        $dimensions = str_starts_with((string) $file->getMimeType(), 'image/') ? (@getimagesize($file->getRealPath()) ?: [null, null]) : [null, null];
 
         $media = new Media;
         $media->forceFill([

@@ -2,7 +2,14 @@
 import MediaGrid from '@/components/media/MediaGrid.vue';
 import type { MediaItem } from '@/types';
 
-defineProps<{ selectedUrl?: string | null }>();
+withDefaults(
+    defineProps<{
+        selectedUrl?: string | null;
+        /** Pictures by default; documents for download links. */
+        kind?: 'image' | 'document';
+    }>(),
+    { selectedUrl: null, kind: 'image' },
+);
 
 const open = defineModel<boolean>({ required: true });
 const emit = defineEmits<{ pick: [item: MediaItem] }>();
@@ -16,11 +23,16 @@ function pick(item: MediaItem) {
 <template>
     <el-dialog
         v-model="open"
-        title="Медиатека"
+        :title="kind === 'document' ? 'Документы' : 'Медиатека'"
         width="min(1000px, 95vw)"
         append-to-body
         destroy-on-close
     >
-        <MediaGrid selectable :selected-url="selectedUrl" @open="pick" />
+        <MediaGrid
+            selectable
+            :kind="kind"
+            :selected-url="selectedUrl"
+            @open="pick"
+        />
     </el-dialog>
 </template>

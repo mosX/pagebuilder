@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { Picture } from '@element-plus/icons-vue';
-import { ref } from 'vue';
+import { Document, Picture } from '@element-plus/icons-vue';
+import { computed, ref } from 'vue';
 import MediaPicker from '@/components/media/MediaPicker.vue';
 import RelationSelect from '@/components/records/RelationSelect.vue';
 import type { CollectionField, RelationValue } from '@/types';
@@ -9,11 +9,20 @@ defineProps<{
     field: CollectionField;
     /** Linked records of a relation field (for labels). */
     related?: RelationValue[];
+    /** Download link of a file a visitor attached (private, admin only). */
+    downloadUrl?: string | null;
 }>();
 
 // Value shape depends on the field type: scalar, relation id, or list of ids.
 const model = defineModel<unknown>({ required: true });
 const pickerOpen = ref(false);
+
+/** Files from site forms are private: "private://…/name.pdf". */
+const privateFile = computed(() =>
+    typeof model.value === 'string' && model.value.startsWith('private://')
+        ? model.value.split('/').pop()
+        : null,
+);
 </script>
 
 <template>
@@ -47,6 +56,40 @@ const pickerOpen = ref(false);
             :selected-url="String(model ?? '')"
             @pick="(item) => (model = item.url)"
         />
+    </div>
+    <div v-else-if="field.type === 'file'" class="flex w-full flex-col gap-2">
+        <div v-if="privateFile" class="flex items-center gap-2">
+            <a
+                :href="downloadUrl ?? undefined"
+                class="inline-flex items-center gap-1 text-[var(--el-color-primary)] hover:underline"
+            >
+                <el-icon><Document /></el-icon> {{ privateFile }}
+            </a>
+            <span class="text-xs text-[var(--el-text-color-secondary)]"
+                >из формы на сайте</span
+            >
+        </div>
+        <template v-else>
+            <div class="flex gap-2">
+                <el-button :icon="Document" @click="pickerOpen = true">
+                    Выбрать документ
+                </el-button>
+                <el-button v-if="model" text @click="model = null"
+                    >Убрать</el-button
+                >
+            </div>
+            <el-input
+                v-model="model as string"
+                placeholder="или адрес https://…"
+                clearable
+            />
+            <MediaPicker
+                v-model="pickerOpen"
+                kind="document"
+                :selected-url="String(model ?? '')"
+                @pick="(item) => (model = item.url)"
+            />
+        </template>
     </div>
     <el-input
         v-else-if="field.type === 'text'"

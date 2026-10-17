@@ -8,6 +8,7 @@ use App\Models\Collection;
 use App\Models\CollectionField;
 use App\Support\Collections\RecordRepository;
 use App\Support\Site\Forms;
+use App\Support\Site\FormUploads;
 use App\Support\Site\RecordUrls;
 use App\Support\Site\SiteDesign;
 use App\Support\Site\SiteLanguages;
@@ -101,6 +102,8 @@ class BlockDataResolver
             'per_page' => is_numeric($props['limit'] ?? null) ? (int) $props['limit'] : 6,
             'page' => $paginate ? $context->page : 1,
             ...$this->sort($props, $display),
+            // Scheduled records appear once their date has come.
+            'released' => $collection->site_publish_at_field,
             'where' => array_filter([
                 // Unpublished records never reach the site.
                 $published ? [$published, true] : null,
@@ -164,7 +167,10 @@ class BlockDataResolver
             ->first();
 
         return $collection
-            ? $this->forms->schema($context->tenant, $collection, (array) ($props['fields'] ?? []), withToken: ! $context->preview, notifyEmail: is_string($props['notify_email'] ?? null) ? $props['notify_email'] : null)
+            ? $this->forms->schema($context->tenant, $collection, (array) ($props['fields'] ?? []), withToken: ! $context->preview, notifyEmail: is_string($props['notify_email'] ?? null) ? $props['notify_email'] : null, options: [
+                'captcha' => (bool) ($props['captcha'] ?? true),
+                'confirm' => ! empty($props['confirm_submitter']) && is_string($props['confirm_message'] ?? null) ? $props['confirm_message'] : null,
+            ])
             : null;
     }
 
@@ -191,7 +197,7 @@ class BlockDataResolver
         $field = $context->collection ? $this->field($context->collection, $props['field'] ?? null) : null;
         $value = $field && $context->record ? ($context->record[$field->name] ?? null) : null;
 
-        if (! $field || $value === null || $value === '' || $value === []) {
+        if (! $field || $value === null || $value === '' || $value === [] || app(FormUploads::class)->isPrivate($value)) {
             return ['type' => $field?->type->value, 'value' => null, 'items' => []];
         }
 

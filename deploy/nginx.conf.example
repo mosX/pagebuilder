@@ -1,0 +1,83 @@
+# Pagebuilder behind nginx + PHP-FPM.
+#
+# One server block serves the platform (admin) and every company site:
+#   pagebuilder.example        — admin SPA and API
+#   *.pagebuilder.example      — company sites ({slug}.pagebuilder.example)
+# DNS: an A record for the domain and a wildcard A record (*) to this server.
+# TLS: a wildcard certificate, e.g. certbot with a DNS-01 challenge:
+#   certbot certonly --dns-<provider> -d pagebuilder.example -d '*.pagebuilder.example'
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pagebuilder.example *.pagebuilder.example;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name pagebuilder.example *.pagebuilder.example;
+
+    root /var/www/pagebuilder/current/public;
+    index index.php;
+    charset utf-8;
+
+    ssl_certificate     /etc/letsencrypt/live/pagebuilder.example/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/pagebuilder.example/privkey.pem;
+
+    # Uploads up to the media library limit plus some headroom.
+    client_max_body_size 25m;
+
+    # Static files are served by nginx, so they need their own headers.
+    location ^~ /build/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff;
+        try_files $uri =404;
+    }
+
+    # PDFs open in the browser's viewer, which a sandboxing policy would block.
+    location ~* ^/storage/.+\.pdf$ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options nosniff;
+        try_files $uri =404;
+    }
+
+    location /storage/ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options nosniff;
+        # Uploaded files are data, never pages or scripts of this origin.
+        add_header Content-Security-Policy "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; sandbox";
+        try_files $uri =404;
+    }
+
+    # Resized images are cached as files in public/img; misses go to Laravel.
+    location ^~ /img/ {
+        add_header Cache-Control "public, max-age=2592000";
+        add_header X-Content-Type-Options nosniff;
+        try_files $uri /index.php?$query_string;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location = /robots.txt  { access_log off; log_not_found off; }
+
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_split_path_info ^(.+\.php)(/.*)$;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT $realpath_root;
+        fastcgi_hide_header X-Powered-By;
+        fastcgi_read_timeout 60s;
+    }
+
+    # No other PHP file and no dotfiles (.env, .git) are ever served.
+    location ~ \.php$ { return 404; }
+    location ~ /\.(?!well-known).* { deny all; }
+}

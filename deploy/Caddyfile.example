@@ -1,0 +1,40 @@
+# Caddy in front of nginx, for companies' own domains (acme.com).
+#
+# Certificates for own domains cannot be issued in advance, so Caddy issues them on the
+# first request ("on-demand TLS"). Before that it asks the app whether the host is a
+# verified domain (/internal/tls-check), so nobody can make it request certificates
+# for arbitrary names.
+#
+# With Caddy, nginx serves plain HTTP on 127.0.0.1:8080 for any host: in
+# deploy/nginx.conf.example replace the two server blocks' listen/ssl lines with
+#   listen 127.0.0.1:8080;
+#   server_name _;
+# and drop the ssl_* lines. The app trusts X-Forwarded-* from 127.0.0.1 (bootstrap/app.php).
+
+{
+    email admin@pagebuilder.example
+    on_demand_tls {
+        ask http://127.0.0.1:8080/internal/tls-check
+    }
+}
+
+# The platform and company subdomains: a wildcard certificate via a DNS challenge
+# (needs a Caddy build with your DNS provider's module, e.g. caddy-dns/cloudflare).
+pagebuilder.example, *.pagebuilder.example {
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+    }
+    reverse_proxy 127.0.0.1:8080
+}
+
+# Every other host: companies' own domains, certificates on demand.
+https:// {
+    tls {
+        on_demand
+    }
+    reverse_proxy 127.0.0.1:8080
+}
+
+http:// {
+    redir https://{host}{uri} permanent
+}

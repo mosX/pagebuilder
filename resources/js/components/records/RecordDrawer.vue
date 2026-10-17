@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus';
 import { computed, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import FieldInput from '@/components/records/FieldInput.vue';
+import RecordHistory from '@/components/records/RecordHistory.vue';
 import RecordTranslations from '@/components/records/RecordTranslations.vue';
 import { useForm } from '@/composables/useForm';
 import { send } from '@/lib/http';
@@ -167,6 +168,12 @@ const title = computed(() =>
     props.record ? `Запись #${props.record.id}` : 'Новая запись',
 );
 
+/** A version was restored: the list shows the record as it is now. */
+function onRestored() {
+    open.value = false;
+    emit('saved');
+}
+
 async function save() {
     const route = props.record
         ? records.update({
@@ -220,9 +227,26 @@ async function save() {
                     v-model="form[field.name]"
                     :field="field"
                     :related="related(field)"
+                    :download-url="
+                        record && field.type === 'file'
+                            ? records.file({
+                                  collection: collection.name,
+                                  record: record.id,
+                                  field: field.name,
+                              }).url
+                            : null
+                    "
                 />
             </el-form-item>
         </el-form>
+
+        <RecordHistory
+            v-if="record"
+            :collection="collection"
+            :record="record"
+            :readonly="readonly"
+            @restored="onRestored"
+        />
 
         <RecordTranslations
             v-if="record"

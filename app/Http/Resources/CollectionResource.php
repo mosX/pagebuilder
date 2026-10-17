@@ -30,6 +30,7 @@ class CollectionResource extends JsonResource
                 'path' => $collection->site_path,
                 'slug_field' => $collection->site_slug_field,
                 'published_field' => $collection->site_published_field,
+                'publish_at_field' => $collection->site_publish_at_field,
                 'url' => $collection->site_path ? $collection->tenant->siteUrl().'/'.$collection->site_path : null,
             ],
             'site_template' => $this->when($request->routeIs('api.collections.show'), fn () => $collection->site_template ?? []),

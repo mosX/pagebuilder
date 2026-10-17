@@ -1,0 +1,44 @@
+{
+    "name": "files",
+    "label": "Файлы",
+    "category": "media",
+    "icon": "Document",
+    "description": "Документы для скачивания: прайс-листы, договоры, инструкции",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок",
+            "default": "Документы"
+        },
+        "items": {
+            "type": "list",
+            "label": "Файлы",
+            "itemLabel": "title",
+            "max": 30,
+            "default": [
+                {
+                    "title": "Прайс-лист",
+                    "file": "",
+                    "note": "PDF"
+                }
+            ],
+            "item": {
+                "title": {
+                    "type": "text",
+                    "label": "Название",
+                    "default": "Документ"
+                },
+                "file": {
+                    "type": "file",
+                    "label": "Файл",
+                    "default": ""
+                },
+                "note": {
+                    "type": "text",
+                    "label": "Подпись (формат, размер)",
+                    "default": ""
+                }
+            }
+        }
+    }
+}

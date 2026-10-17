@@ -5,12 +5,15 @@ namespace App\Models;
 use App\Enums\TenantRole;
 use App\Support\Collections\SchemaManager;
 use App\Support\Media\MediaLibrary;
+use App\Support\Site\SiteCache;
+use App\Support\Tenancy\CustomDomains;
 use App\Support\Tenancy\Subdomains;
 use Database\Factories\TenantFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -18,6 +21,7 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property string $name
  * @property string $slug
+ * @property string $timezone
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -34,6 +38,9 @@ class Tenant extends Model
         static::creating(function (Tenant $tenant) {
             $tenant->slug = $tenant->slug ?: static::uniqueSlug($tenant->name);
         });
+
+        // Name, address or availability of the site changed.
+        static::saved(fn (Tenant $tenant) => app(SiteCache::class)->flush($tenant->id));
 
         // Collection tables and stored files are not covered by foreign key cascades.
         static::deleting(function (Tenant $tenant) {
@@ -94,6 +101,17 @@ class Tenant extends Model
 
     public function siteUrl(): string
     {
-        return Subdomains::siteUrl($this);
+        $domain = app(CustomDomains::class)->primaryOf($this);
+        $scheme = config('tenancy.site_scheme');
+
+        return $domain ? (is_string($scheme) ? $scheme : 'https').'://'.$domain : Subdomains::siteUrl($this);
+    }
+
+    /**
+     * @return HasMany<Domain, $this>
+     */
+    public function domains(): HasMany
+    {
+        return $this->hasMany(Domain::class);
     }
 }

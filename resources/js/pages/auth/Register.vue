@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
+import TemplatePicker from '@/components/TemplatePicker.vue';
 import { useForm } from '@/composables/useForm';
 import { register } from '@/routes/api';
 import { useSessionStore } from '@/stores/session';
@@ -10,6 +11,7 @@ const router = useRouter();
 
 const form = useForm({
     company: '',
+    template: 'business',
     name: '',
     email: '',
     password: '',
@@ -40,6 +42,9 @@ async function submit() {
                 :error="form.errors.company"
             >
                 <el-input v-model="form.company" autofocus />
+            </el-form-item>
+            <el-form-item label="Шаблон сайта" :error="form.errors.template">
+                <TemplatePicker v-model="form.template" />
             </el-form-item>
             <el-form-item label="Ваше имя" :error="form.errors.name">
                 <el-input v-model="form.name" autocomplete="name" />

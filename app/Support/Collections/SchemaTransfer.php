@@ -53,6 +53,7 @@ class SchemaTransfer
                     'path' => $c->site_path,
                     'slug_field' => $c->site_slug_field,
                     'published_field' => $c->site_published_field,
+                    'publish_at_field' => $c->site_publish_at_field,
                     'template' => $c->site_template ?? [],
                 ] : null,
                 'fields' => $c->fields->map(fn (CollectionField $f) => [
@@ -220,6 +221,7 @@ class SchemaTransfer
         $publish = $path && ! $pathTaken && preg_match('/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/', $path);
         $slugField = $site['slug_field'] ?? 'id';
         $publishedField = $site['published_field'] ?? null;
+        $publishAtField = $site['publish_at_field'] ?? null;
         $collections = Collection::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->pluck('name')->map(fn (mixed $n) => (string) $n)->all();
 
         $collection->forceFill([
@@ -227,6 +229,7 @@ class SchemaTransfer
             'site_path' => $publish ? $path : null,
             'site_slug_field' => $publish ? ($slugField === 'id' || in_array($slugField, $names, true) ? $slugField : 'id') : null,
             'site_published_field' => $publish && in_array($publishedField, $names, true) ? $publishedField : null,
+            'site_publish_at_field' => $publish && in_array($publishAtField, $names, true) ? $publishAtField : null,
             'site_template' => $publish ? $this->blocks->sanitize($site['template'] ?? [], 'template', $collections) : null,
         ])->save();
     }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search } from '@element-plus/icons-vue';
 import { onMounted, reactive, ref } from 'vue';
+import { activityActions } from '@/lib/activity-actions';
 import { send } from '@/lib/http';
 import activity from '@/routes/api/activity';
 import type { Paginated } from '@/types';
@@ -15,43 +16,7 @@ type Entry = {
     created_at: string | null;
 };
 
-const actions: Record<string, string> = {
-    'collection.created': 'Создана коллекция',
-    'collection.updated': 'Изменена коллекция',
-    'collection.deleted': 'Удалена коллекция',
-    'collection.site_updated': 'Изменён раздел сайта',
-    'field.created': 'Добавлено поле',
-    'field.updated': 'Изменено поле',
-    'field.deleted': 'Удалено поле',
-    'record.created': 'Создана запись',
-    'record.updated': 'Изменена запись',
-    'record.deleted': 'Удалена запись',
-    'form.submitted': 'Заявка с сайта',
-    'blocks.published': 'Опубликовано',
-    'pattern.created': 'Создана секция',
-    'pattern.renamed': 'Переименована секция',
-    'pattern.deleted': 'Удалена секция',
-    'media.uploaded': 'Загружен файл',
-    'media.deleted': 'Удалён файл',
-    'member.added': 'Добавлен пользователь',
-    'member.role_changed': 'Изменена роль',
-    'member.removed': 'Удалён пользователь',
-    'company.updated': 'Изменена компания',
-    'apikey.created': 'Создан API-ключ',
-    'apikey.revoked': 'Отозван API-ключ',
-    'schema.imported': 'Импорт схемы',
-    'site.updated': 'Изменено оформление сайта',
-    'webhook.created': 'Создан вебхук',
-    'webhook.updated': 'Изменён вебхук',
-    'webhook.deleted': 'Удалён вебхук',
-    'automation.created': 'Создана автоматизация',
-    'automation.updated': 'Изменена автоматизация',
-    'automation.deleted': 'Удалена автоматизация',
-    'record.translated': 'Переведена запись',
-    'site_member.blocked': 'Заблокирован посетитель',
-    'site_member.unblocked': 'Разблокирован посетитель',
-    'site_member.deleted': 'Удалён посетитель',
-};
+const actions = activityActions;
 
 const groups = [
     { value: '', label: 'Все действия' },

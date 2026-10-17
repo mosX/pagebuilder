@@ -19,12 +19,14 @@ abstract class RecordEvent
      * @param  array<string, mixed>  $record  The record as presented by RecordRepository.
      * @param  list<string>  $changes  Names of the fields that changed (updates only).
      * @param  int  $depth  How many automations deep this change was caused (loop protection).
+     * @param  array<string, mixed>  $before  The record before the change (updates only).
      */
     public function __construct(
         public Collection $collection,
         public array $record,
         public array $changes = [],
         public int $depth = 0,
+        public array $before = [],
     ) {}
 
     /**

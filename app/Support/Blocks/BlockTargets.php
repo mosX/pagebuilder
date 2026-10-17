@@ -44,7 +44,7 @@ class BlockTargets
             'field' => $this->field($key, $parts, $locale),
             'template' => new BlockTarget($key, 'template', $this->collection($parts[1] ?? '')),
             'pattern' => new BlockTarget($key, 'pattern', pattern: BlockPattern::query()->findOrFail((int) ($parts[1] ?? 0))),
-            'layout' => in_array($parts[1] ?? '', ['header', 'footer'], true)
+            'layout' => in_array($parts[1] ?? '', ['header', 'footer', 'not_found'], true)
                 ? new BlockTarget($key, 'layout', field: $parts[1])
                 : throw ValidationException::withMessages(['target' => 'Неизвестная часть сайта.']),
             default => throw ValidationException::withMessages(['target' => 'Неизвестный объект редактирования.']),
@@ -111,7 +111,11 @@ class BlockTargets
         return match ($target->type) {
             'field' => $this->collectionOf($target)->label." #{$target->recordId}".($target->locale ? " ({$target->locale})" : ''),
             'template' => 'Шаблон страницы: '.$this->collectionOf($target)->label,
-            'layout' => $target->field === 'header' ? 'Шапка сайта' : 'Подвал сайта',
+            'layout' => match ($target->field) {
+                'header' => 'Шапка сайта',
+                'footer' => 'Подвал сайта',
+                default => 'Страница 404',
+            },
             default => 'Секция: '.($target->pattern->name ?? ''),
         };
     }

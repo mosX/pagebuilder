@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\AdminSearchController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AutomationController;
@@ -10,16 +11,22 @@ use App\Http\Controllers\Api\BlockVersionController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\CollectionFieldController;
 use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CustomTemplateController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DomainController;
 use App\Http\Controllers\Api\FormSubmissionController;
+use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\PasswordController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RecordController;
+use App\Http\Controllers\Api\RedirectController;
 use App\Http\Controllers\Api\SchemaController;
 use App\Http\Controllers\Api\SiteController;
 use App\Http\Controllers\Api\SiteMemberController;
 use App\Http\Controllers\Api\SiteSettingsController;
+use App\Http\Controllers\Api\SiteStatsController;
 use App\Http\Controllers\Api\Super\TenantController;
 use App\Http\Controllers\Api\TenantSessionController;
 use App\Http\Controllers\Api\TranslationController;
@@ -47,17 +54,38 @@ Route::name('api.')->group(function () {
         Route::get('pages/{slug?}', [SiteController::class, 'page'])->name('page');
     });
 
-    Route::post('login', [AuthController::class, 'login'])->name('login');
-    Route::post('register', [AuthController::class, 'register'])->name('register');
+    // Per IP, on top of the per-account limit inside AuthController.
+    // Accepting an invitation to a company (signed in, or creating an account for the invited address).
+    Route::middleware('throttle:20,1')->group(function () {
+        Route::get('invitations/{token}', [InvitationController::class, 'show'])->name('invitations.show');
+        Route::post('invitations/{token}/accept', [InvitationController::class, 'accept'])->name('invitations.accept');
+    });
+
+    Route::get('site-templates', [AuthController::class, 'templates'])->name('site-templates');
+
+    Route::middleware('throttle:5,1')->group(function () {
+        Route::post('forgot-password', [PasswordController::class, 'forgot'])->name('password.forgot');
+        Route::post('reset-password', [PasswordController::class, 'reset'])->name('password.reset');
+    });
+
+    Route::post('login', [AuthController::class, 'login'])->middleware('throttle:20,1')->name('login');
+    // Every account gets a company with real tables: creation is rate limited.
+    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:5,1')->name('register');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('me', [AuthController::class, 'me'])->name('me');
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+        Route::post('email/verification-notification', [PasswordController::class, 'sendVerification'])->middleware('throttle:3,10')->name('verification.send');
 
         Route::put('profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::put('profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
-        Route::post('tenants', [TenantSessionController::class, 'create'])->name('tenants.create');
+        // Sites saved as templates (owned by the user who saved them).
+        Route::get('custom-templates', [CustomTemplateController::class, 'index'])->name('custom-templates.index');
+        Route::put('custom-templates/{customTemplate}', [CustomTemplateController::class, 'update'])->name('custom-templates.update');
+        Route::delete('custom-templates/{customTemplate}', [CustomTemplateController::class, 'destroy'])->name('custom-templates.destroy');
+
+        Route::post('tenants', [TenantSessionController::class, 'create'])->middleware('throttle:5,1')->name('tenants.create');
         Route::put('tenants/{tenant}/switch', [TenantSessionController::class, 'switch'])->name('tenants.switch');
 
         Route::middleware('tenant')->group(function () {
@@ -68,9 +96,11 @@ Route::name('api.')->group(function () {
 
             Route::get('members', [MemberController::class, 'index'])->middleware('can:members.view')->name('members.index');
             Route::middleware('can:members.manage')->group(function () {
-                Route::post('members', [MemberController::class, 'store'])->name('members.store');
+                Route::post('members', [MemberController::class, 'store'])->middleware('throttle:20,1')->name('members.store');
                 Route::put('members/{member}', [MemberController::class, 'update'])->name('members.update');
                 Route::delete('members/{member}', [MemberController::class, 'destroy'])->name('members.destroy');
+                Route::post('member-invitations/{invitation}/resend', [MemberController::class, 'resendInvitation'])->middleware('throttle:10,1')->name('member-invitations.resend');
+                Route::delete('member-invitations/{invitation}', [MemberController::class, 'revokeInvitation'])->name('member-invitations.destroy');
             });
 
             Route::get('collections', [CollectionController::class, 'index'])->middleware('can:content.view')->name('collections.index');
@@ -123,6 +153,8 @@ Route::name('api.')->group(function () {
                     Route::get('options', [RecordController::class, 'options'])->name('options');
                     Route::get('{record}', [RecordController::class, 'show'])->name('show');
                     Route::get('{record}/backlinks', [RecordController::class, 'backlinks'])->name('backlinks');
+                    Route::get('{record}/revisions', [RecordController::class, 'revisions'])->name('revisions');
+                    Route::get('{record}/files/{field}', [RecordController::class, 'file'])->where('field', '[a-z][a-z0-9_]{0,23}')->name('file');
                     Route::get('{record}/translations', [TranslationController::class, 'show'])->name('translations.show');
                 });
 
@@ -130,6 +162,7 @@ Route::name('api.')->group(function () {
                     Route::post('/', [RecordController::class, 'store'])->name('store');
                     Route::put('{record}', [RecordController::class, 'update'])->name('update');
                     Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
+                    Route::post('{record}/revisions/{revision}/restore', [RecordController::class, 'restore'])->whereNumber('revision')->name('revisions.restore');
                     Route::put('{record}/translations/{locale}', [TranslationController::class, 'update'])->where('locale', '[a-z]{2}')->name('translations.update');
                 });
             });
@@ -147,6 +180,25 @@ Route::name('api.')->group(function () {
                 Route::delete('site-members/{siteMember}', [SiteMemberController::class, 'destroy'])->name('site-members.destroy');
             });
 
+            // Redirects of the company site.
+            Route::get('redirects', [RedirectController::class, 'index'])->middleware('can:content.view')->name('redirects.index');
+            Route::middleware('can:content.manage')->group(function () {
+                Route::post('redirects', [RedirectController::class, 'store'])->name('redirects.store');
+                Route::put('redirects/{redirect}', [RedirectController::class, 'update'])->name('redirects.update');
+                Route::delete('redirects/{redirect}', [RedirectController::class, 'destroy'])->name('redirects.destroy');
+            });
+
+            // Own domains of the company site.
+            Route::get('domains', [DomainController::class, 'index'])->middleware('can:company.view')->name('domains.index');
+            Route::middleware('can:company.update')->group(function () {
+                Route::post('domains', [DomainController::class, 'store'])->name('domains.store');
+                Route::post('domains/{domain}/verify', [DomainController::class, 'verify'])->middleware('throttle:20,1')->name('domains.verify');
+                Route::post('domains/{domain}/primary', [DomainController::class, 'makePrimary'])->name('domains.primary');
+                Route::delete('domains/{domain}', [DomainController::class, 'destroy'])->name('domains.destroy');
+            });
+
+            Route::post('custom-templates', [CustomTemplateController::class, 'store'])->middleware(['can:company.update', 'throttle:5,1'])->name('custom-templates.store');
+
             Route::get('site-settings', [SiteSettingsController::class, 'show'])->middleware('can:content.view')->name('site-settings.show');
             Route::put('site-settings', [SiteSettingsController::class, 'update'])->middleware('can:company.update')->name('site-settings.update');
 
@@ -157,7 +209,7 @@ Route::name('api.')->group(function () {
                 Route::put('webhooks/{webhook}', [WebhookController::class, 'update'])->name('webhooks.update');
                 Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('webhooks.destroy');
                 Route::post('webhooks/{webhook}/secret', [WebhookController::class, 'rotateSecret'])->name('webhooks.secret');
-                Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->name('webhooks.test');
+                Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->middleware('throttle:10,1')->name('webhooks.test');
                 Route::get('webhooks/{webhook}/deliveries', [WebhookController::class, 'deliveries'])->name('webhooks.deliveries');
 
                 Route::get('automations', [AutomationController::class, 'index'])->name('automations.index');
@@ -166,6 +218,9 @@ Route::name('api.')->group(function () {
                 Route::delete('automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
                 Route::get('automations/{automation}/runs', [AutomationController::class, 'runs'])->name('automations.runs');
             });
+
+            Route::get('search', AdminSearchController::class)->middleware(['can:content.view', 'throttle:60,1'])->name('admin-search');
+            Route::get('site-stats', SiteStatsController::class)->middleware('can:content.view')->name('site-stats');
 
             Route::get('activity', [ActivityController::class, 'index'])->middleware('can:audit.view')->name('activity.index');
 

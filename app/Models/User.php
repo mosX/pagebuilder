@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\Permission;
 use App\Enums\TenantRole;
+use App\Mail\AccountLinkMail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
@@ -48,6 +51,30 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_super_admin' => 'boolean',
         ];
+    }
+
+    /**
+     * The reset link leads to the admin SPA (the e-mail is in Russian, like the rest of the app).
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $url = rtrim((string) config('app.url'), '/').'/reset-password/'.$token.'?email='.rawurlencode($this->email);
+        $minutes = (int) config('auth.passwords.users.expire', 60);
+
+        Mail::to($this->email)->send(AccountLinkMail::passwordReset((string) config('app.name'), $this->name, $url, $minutes));
+    }
+
+    /**
+     * The confirmation link is signed without the host, so it works whatever APP_URL is.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $path = URL::temporarySignedRoute('verification.verify', now()->addDays(3), [
+            'id' => $this->id,
+            'hash' => sha1($this->email),
+        ], absolute: false);
+
+        Mail::to($this->email)->send(AccountLinkMail::emailVerification((string) config('app.name'), $this->name, rtrim((string) config('app.url'), '/').$path));
     }
 
     /**

@@ -11,6 +11,8 @@ use App\Support\Blocks\RenderContext;
 /**
  * The company site a request is for: where it is served (subdomain or preview path),
  * in which language, and the signed-in visitor, if any.
+ *
+ * @phpstan-import-type AccountSettings from SiteAccounts
  */
 final readonly class CurrentSite
 {
@@ -19,7 +21,7 @@ final readonly class CurrentSite
      * @param  string  $baseUrl  $rootUrl plus '/{locale}' for an additional language.
      * @param  array{default: string, extra: list<string>}  $languages
      * @param  string  $localeCode  The language of this request (the default one included).
-     * @param  array{enabled: bool, registration: bool, collections: list<array{collection: string, email_field: string}>}  $account
+     * @param  AccountSettings  $account
      */
     public function __construct(
         /** Scheme and host of the request, for redirects. */

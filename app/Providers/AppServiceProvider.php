@@ -8,6 +8,7 @@ use App\Events\PagePublished;
 use App\Events\RecordCreated;
 use App\Events\RecordDeleted;
 use App\Events\RecordUpdated;
+use App\Listeners\FlushSiteCache;
 use App\Listeners\NotifyIntegrations;
 use App\Support\Audit\ActivityLog;
 use App\Support\Blocks\BlockRegistry;
@@ -47,6 +48,10 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             [RecordCreated::class, RecordUpdated::class, RecordDeleted::class, FormSubmitted::class, PagePublished::class],
             [NotifyIntegrations::class, 'onEvent'],
+        );
+        Event::listen(
+            [RecordCreated::class, RecordUpdated::class, RecordDeleted::class, PagePublished::class],
+            [FlushSiteCache::class, 'onEvent'],
         );
 
         // Headless API: per key (or per IP for requests without a key).

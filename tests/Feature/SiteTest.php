@@ -32,7 +32,7 @@ test('the company site is served on its subdomain with SSR markup and meta tags'
         ->assertSee('<meta name="description" content="Best company">', false)
         ->assertSee('<link rel="canonical" href="https://acme.pagebuilder.test/">', false)
         ->assertSee('<div id="site" data-ssr="1"><main>SSR</main></div>', false)
-        ->assertSee('window.__SITE__', false)
+        ->assertSee('<script type="application/json" id="site-payload">', false)
         ->assertDontSee('noindex');
 
     Http::assertSent(fn ($request) => $request['page']['slug'] === 'home' && $request['site']['base_url'] === '');

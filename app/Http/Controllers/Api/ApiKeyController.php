@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApiKey;
+use App\Models\User;
 use App\Support\Audit\ActivityLog;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class ApiKeyController extends Controller
             'can_write' => ['boolean'],
         ]);
 
-        [$key, $token] = ApiKey::issue($context->tenant(), $data['name'], (bool) ($data['can_write'] ?? false), $request->user());
+        [$key, $token] = ApiKey::issue($context->tenant(), $data['name'], (bool) ($data['can_write'] ?? false), $request->user() instanceof User ? $request->user() : null);
         $this->activity->record('apikey.created', $key->name, ['can_write' => $key->can_write]);
 
         return response()->json([

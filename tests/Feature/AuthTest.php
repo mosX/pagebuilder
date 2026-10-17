@@ -70,7 +70,7 @@ test('profile and password can be updated', function () {
     $user = memberOf(Tenant::factory()->create());
 
     $this->actingAs($user)
-        ->putJson(route('api.profile.update'), ['name' => 'Renamed', 'email' => 'renamed@example.com'])
+        ->putJson(route('api.profile.update'), ['name' => 'Renamed', 'email' => 'renamed@example.com', 'current_password' => 'password'])
         ->assertOk()
         ->assertJsonPath('user.name', 'Renamed');
 

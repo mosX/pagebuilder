@@ -6,6 +6,8 @@ type Submission = {
     items: {
         title: string;
         date: string | null;
+        /** The submission's status, when the company tracks one. */
+        status: string | null;
         fields: { label: string; value: string }[];
     }[];
 };
@@ -18,14 +20,32 @@ const props = defineProps<{
     block: Record<string, never>;
     /** Filled by the server on the /account pages. */
     data?: {
-        view: 'login' | 'register' | 'cabinet';
+        view: 'login' | 'register' | 'cabinet' | 'forgot' | 'reset';
+        /** The address from the reset link. */
+        email?: string;
         csrf: string;
         status: string | null;
         errors: Record<string, string>;
-        old: { name?: string; email?: string };
+        old: {
+            name?: string;
+            email?: string;
+            profile?: Record<string, string>;
+        };
+        /** Extra profile fields of the site (phone…). */
+        profile_fields?: {
+            name: string;
+            label: string;
+            type: string;
+            required: boolean;
+        }[];
         redirect?: string | null;
         actions: Record<string, string | null>;
-        member?: { name: string; email: string; verified: boolean };
+        member?: {
+            name: string;
+            email: string;
+            verified: boolean;
+            profile: Record<string, string>;
+        };
         submissions?: Submission[];
     };
 }>();
@@ -116,6 +136,13 @@ function date(value: string | null) {
                     </label>
                     <button type="submit" :class="button">Войти</button>
                 </form>
+                <p v-if="data.actions.forgot" class="text-sm">
+                    <a
+                        :href="data.actions.forgot"
+                        class="text-brand hover:underline"
+                        >Забыли пароль?</a
+                    >
+                </p>
                 <p v-if="data.actions.register" class="text-sm text-gray-600">
                     Нет аккаунта?
                     <a
@@ -124,6 +151,110 @@ function date(value: string | null) {
                         >Зарегистрируйтесь</a
                     >
                 </p>
+            </template>
+
+            <!-- Forgotten password -->
+            <template v-else-if="data.view === 'forgot'">
+                <h1 class="font-heading text-3xl font-bold text-ink">
+                    Восстановление пароля
+                </h1>
+                <p class="text-sm text-gray-600">
+                    Укажите e-mail аккаунта — пришлём ссылку, по которой можно
+                    задать новый пароль.
+                </p>
+                <form
+                    :action="data.actions.forgot ?? undefined"
+                    method="post"
+                    class="flex flex-col gap-4"
+                >
+                    <input type="hidden" name="_token" :value="data.csrf" />
+                    <label class="flex flex-col gap-1 text-sm">
+                        <span class="font-medium text-gray-700">E-mail</span>
+                        <input
+                            type="email"
+                            name="email"
+                            :value="data.old.email"
+                            required
+                            autocomplete="email"
+                            :class="input"
+                        />
+                        <span v-if="errors.email" class="text-xs text-red-600">
+                            {{ errors.email }}
+                        </span>
+                    </label>
+                    <button type="submit" :class="button">
+                        Отправить ссылку
+                    </button>
+                </form>
+                <p class="text-sm text-gray-600">
+                    <a
+                        :href="data.actions.login ?? undefined"
+                        class="text-brand hover:underline"
+                        >Вернуться ко входу</a
+                    >
+                </p>
+            </template>
+
+            <!-- New password by the link from the e-mail -->
+            <template v-else-if="data.view === 'reset'">
+                <h1 class="font-heading text-3xl font-bold text-ink">
+                    Новый пароль
+                </h1>
+                <form
+                    :action="data.actions.reset ?? undefined"
+                    method="post"
+                    class="flex flex-col gap-4"
+                >
+                    <input type="hidden" name="_token" :value="data.csrf" />
+                    <label class="flex flex-col gap-1 text-sm">
+                        <span class="font-medium text-gray-700">E-mail</span>
+                        <input
+                            type="email"
+                            name="email"
+                            :value="data.old.email ?? data.email"
+                            required
+                            autocomplete="email"
+                            :class="input"
+                        />
+                        <span v-if="errors.email" class="text-xs text-red-600">
+                            {{ errors.email }}
+                        </span>
+                    </label>
+                    <label class="flex flex-col gap-1 text-sm">
+                        <span class="font-medium text-gray-700"
+                            >Новый пароль</span
+                        >
+                        <input
+                            type="password"
+                            name="password"
+                            required
+                            minlength="8"
+                            autocomplete="new-password"
+                            :class="input"
+                        />
+                        <span
+                            v-if="errors.password"
+                            class="text-xs text-red-600"
+                        >
+                            {{ errors.password }}
+                        </span>
+                    </label>
+                    <label class="flex flex-col gap-1 text-sm">
+                        <span class="font-medium text-gray-700"
+                            >Пароль ещё раз</span
+                        >
+                        <input
+                            type="password"
+                            name="password_confirmation"
+                            required
+                            autocomplete="new-password"
+                            :class="input"
+                        />
+                    </label>
+                    <button type="submit" :class="button">
+                        Сохранить пароль
+                    </button>
+                </form>
             </template>
 
             <!-- Sign up -->
@@ -163,6 +294,34 @@ function date(value: string | null) {
                         />
                         <span v-if="errors.email" class="text-xs text-red-600">
                             {{ errors.email }}
+                        </span>
+                    </label>
+                    <label
+                        v-for="field in data.profile_fields ?? []"
+                        :key="field.name"
+                        class="flex flex-col gap-1 text-sm"
+                    >
+                        <span class="font-medium text-gray-700">
+                            {{ field.label }}
+                            <span v-if="field.required" class="text-red-500"
+                                >*</span
+                            >
+                        </span>
+                        <input
+                            :type="field.type === 'phone' ? 'tel' : 'text'"
+                            :name="`profile[${field.name}]`"
+                            :value="data.old.profile?.[field.name]"
+                            :required="field.required"
+                            :autocomplete="
+                                field.type === 'phone' ? 'tel' : 'on'
+                            "
+                            :class="input"
+                        />
+                        <span
+                            v-if="errors[`profile.${field.name}`]"
+                            class="text-xs text-red-600"
+                        >
+                            {{ errors[`profile.${field.name}`] }}
                         </span>
                     </label>
                     <label class="flex flex-col gap-1 text-sm">
@@ -269,9 +428,16 @@ function date(value: string | null) {
                         class="rounded-site border border-gray-200 p-4"
                     >
                         <div class="flex flex-wrap justify-between gap-2">
-                            <span class="font-medium text-ink">{{
-                                item.title
-                            }}</span>
+                            <span
+                                class="flex items-center gap-2 font-medium text-ink"
+                            >
+                                {{ item.title }}
+                                <span
+                                    v-if="item.status"
+                                    class="rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand"
+                                    >{{ item.status }}</span
+                                >
+                            </span>
                             <span class="text-sm text-gray-500">{{
                                 date(item.date)
                             }}</span>
@@ -317,6 +483,37 @@ function date(value: string | null) {
                                 class="text-xs text-red-600"
                             >
                                 {{ errors.name }}
+                            </span>
+                        </label>
+                        <label
+                            v-for="field in data.profile_fields ?? []"
+                            :key="field.name"
+                            class="flex flex-col gap-1 text-sm"
+                        >
+                            <span class="font-medium text-gray-700">
+                                {{ field.label }}
+                                <span v-if="field.required" class="text-red-500"
+                                    >*</span
+                                >
+                            </span>
+                            <input
+                                :type="field.type === 'phone' ? 'tel' : 'text'"
+                                :name="`profile[${field.name}]`"
+                                :value="
+                                    data.old.profile?.[field.name] ??
+                                    data.member.profile?.[field.name]
+                                "
+                                :required="field.required"
+                                :autocomplete="
+                                    field.type === 'phone' ? 'tel' : 'on'
+                                "
+                                :class="input"
+                            />
+                            <span
+                                v-if="errors[`profile.${field.name}`]"
+                                class="text-xs text-red-600"
+                            >
+                                {{ errors[`profile.${field.name}`] }}
                             </span>
                         </label>
                         <label class="flex flex-col gap-1 text-sm">

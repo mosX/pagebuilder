@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus';
+import { computed } from 'vue';
 import { useForm } from '@/composables/useForm';
 import profile from '@/routes/api/profile';
 import { useSessionStore } from '@/stores/session';
@@ -10,7 +11,13 @@ const session = useSessionStore();
 const profileForm = useForm({
     name: session.user?.name ?? '',
     email: session.user?.email ?? '',
+    current_password: '',
 });
+
+// A new e-mail (the login) is confirmed with the current password.
+const emailChanged = computed(
+    () => profileForm.email !== (session.user?.email ?? ''),
+);
 
 const passwordForm = useForm({
     current_password: '',
@@ -24,6 +31,7 @@ async function saveProfile() {
     );
 
     if (result) {
+        profileForm.current_password = '';
         profileForm.defaults();
         session.user = result.user;
         ElMessage.success(result.message);
@@ -59,6 +67,18 @@ async function savePassword() {
                         :error="profileForm.errors.email"
                     >
                         <el-input v-model="profileForm.email" type="email" />
+                    </el-form-item>
+                    <el-form-item
+                        v-if="emailChanged"
+                        label="Текущий пароль"
+                        :error="profileForm.errors.current_password"
+                    >
+                        <el-input
+                            v-model="profileForm.current_password"
+                            type="password"
+                            autocomplete="current-password"
+                            show-password
+                        />
                     </el-form-item>
                     <el-button
                         type="primary"
