@@ -1,0 +1,9 @@
+{
+    "name": "account",
+    "label": "Личный кабинет",
+    "category": "site",
+    "icon": "User",
+    "description": "Служебный блок страниц входа, регистрации и кабинета",
+    "hidden": true,
+    "props": {}
+}

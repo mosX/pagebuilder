@@ -1,0 +1,34 @@
+{
+    "name": "site_menu",
+    "label": "Меню",
+    "category": "site",
+    "icon": "Menu",
+    "description": "Меню сайта (настраивается в разделе «Сайт»)",
+    "data": "site_menu",
+    "props": {
+        "variant": {
+            "type": "select",
+            "label": "Стиль",
+            "default": "default",
+            "options": [
+                {
+                    "value": "default",
+                    "label": "Обычный"
+                },
+                {
+                    "value": "muted",
+                    "label": "Приглушённый"
+                },
+                {
+                    "value": "button",
+                    "label": "Кнопки"
+                }
+            ]
+        },
+        "collapse": {
+            "type": "boolean",
+            "label": "Сворачивать в «бургер» на телефоне",
+            "default": true
+        }
+    }
+}

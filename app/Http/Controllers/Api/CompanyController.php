@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Support\Audit\ActivityLog;
 use App\Support\Tenancy\Subdomains;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -32,6 +33,7 @@ class CompanyController extends Controller
         ], Subdomains::messages());
 
         $tenant->update($data);
+        app(ActivityLog::class)->record('company.updated', $tenant->name, ['slug' => $tenant->slug]);
 
         return response()->json([
             'message' => 'Данные компании сохранены.',

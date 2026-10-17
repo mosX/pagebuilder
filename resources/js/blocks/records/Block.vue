@@ -24,9 +24,9 @@ defineProps<{
 
 const columns = {
     '1': 'grid-cols-1',
-    '2': 'grid-cols-1 sm:grid-cols-2',
-    '3': 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
-    '4': 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
+    '2': 'grid-cols-1 @2xl:grid-cols-2',
+    '3': 'grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-3',
+    '4': 'grid-cols-1 @2xl:grid-cols-2 @5xl:grid-cols-4',
 };
 
 /** Pagination keeps the visitor on the same page: ?page=N. */
@@ -37,7 +37,10 @@ function pageUrl(page: number) {
 
 <template>
     <div class="flex flex-col gap-4">
-        <h2 v-if="block.title" class="text-2xl font-semibold text-gray-900">
+        <h2
+            v-if="block.title"
+            class="font-heading text-2xl font-semibold text-ink"
+        >
             {{ block.title }}
         </h2>
 
@@ -59,7 +62,7 @@ function pageUrl(page: number) {
                 v-for="item in data?.items ?? []"
                 :key="item.id"
                 :href="item.url ?? undefined"
-                class="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+                class="flex flex-col overflow-hidden rounded-site border border-gray-200 bg-surface shadow-sm"
                 :class="{ 'transition hover:shadow-md': item.url }"
             >
                 <img
@@ -70,7 +73,7 @@ function pageUrl(page: number) {
                     class="aspect-video w-full object-cover"
                 />
                 <div class="p-5">
-                    <h3 class="font-semibold text-gray-900">
+                    <h3 class="font-heading font-semibold text-ink">
                         {{ item.title }}
                     </h3>
                     <p v-if="item.subtitle" class="mt-1 text-sm text-gray-500">
@@ -87,7 +90,7 @@ function pageUrl(page: number) {
             <a
                 v-if="data.page > 1"
                 :href="pageUrl(data.page - 1)"
-                class="text-blue-600 hover:underline"
+                class="text-brand hover:underline"
             >
                 ← Назад
             </a>
@@ -97,7 +100,7 @@ function pageUrl(page: number) {
             <a
                 v-if="data.page < data.last_page"
                 :href="pageUrl(data.page + 1)"
-                class="text-blue-600 hover:underline"
+                class="text-brand hover:underline"
             >
                 Вперёд →
             </a>

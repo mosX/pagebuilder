@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Support\Audit\ActivityLog;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -87,6 +88,7 @@ class MemberController extends Controller
         }
 
         $tenant->addMember($user, $role);
+        app(ActivityLog::class)->record('member.added', $user->email, ['role' => $role->value]);
 
         return response()->json(['message' => "Пользователь {$user->email} добавлен в компанию."], 201);
     }
@@ -108,6 +110,7 @@ class MemberController extends Controller
         }
 
         $tenant->members()->updateExistingPivot($member->id, ['role' => $newRole->value]);
+        app(ActivityLog::class)->record('member.role_changed', $member->email, ['from' => $currentRole->value, 'to' => $newRole->value]);
 
         return response()->json(['message' => "Роль пользователя {$member->name} изменена."]);
     }
@@ -129,6 +132,8 @@ class MemberController extends Controller
                 $member->forceFill(['current_tenant_id' => null])->save();
             }
         });
+
+        app(ActivityLog::class)->record('member.removed', $member->email);
 
         return response()->json(['message' => "Пользователь {$member->name} удалён из компании."]);
     }

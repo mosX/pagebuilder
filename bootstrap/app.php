@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\SetCurrentTenant;
 use Illuminate\Foundation\Application;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => SetCurrentTenant::class,
             'super' => EnsureSuperAdmin::class,
+            'api.key' => AuthenticateApiKey::class,
         ]);
 
         // The tenant must be known before route model binding, so tenant-scoped models
@@ -35,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: SubstituteBindings::class,
             prepend: SetCurrentTenant::class,
+        );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: AuthenticateApiKey::class,
         );
 
         $middleware->redirectGuestsTo('/login');

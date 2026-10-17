@@ -74,7 +74,7 @@ test('unknown blocks and oversized trees are rejected', function () {
 
 test('every company gets a pages collection with a published home page', function () {
     expect($this->pages->kind)->toBe('pages')
-        ->and($this->pages->fields->pluck('name')->all())->toBe(['title', 'slug', 'description', 'content', 'is_published'])
+        ->and($this->pages->fields->pluck('name')->all())->toBe(['title', 'slug', 'description', 'content', 'is_published', 'members_only'])
         ->and($this->pages->fields->every->is_system)->toBeTrue();
 
     $home = (new RecordRepository($this->pages))->find(homeId());

@@ -3,10 +3,14 @@
 namespace App\Support\Blocks;
 
 use App\Enums\FieldType;
+use App\Models\BlockPattern;
 use App\Models\Collection;
 use App\Models\CollectionField;
 use App\Support\Collections\RecordRepository;
+use App\Support\Site\Forms;
 use App\Support\Site\RecordUrls;
+use App\Support\Site\SiteDesign;
+use App\Support\Site\SiteLanguages;
 use Illuminate\Support\Str;
 
 /**
@@ -15,9 +19,14 @@ use Illuminate\Support\Str;
  */
 class BlockDataResolver
 {
+    public const MAX_PATTERN_DEPTH = 3;
+
     public function __construct(
         private BlockRegistry $registry,
         private RecordUrls $urls,
+        private Forms $forms,
+        private SiteDesign $design,
+        private SiteLanguages $languages,
     ) {}
 
     /**
@@ -52,6 +61,10 @@ class BlockDataResolver
         return match ($this->registry->get($type)['data'] ?? null) {
             'records' => $this->records($context, $props),
             'record_field' => $this->recordField($context, $props),
+            'pattern' => $this->pattern($context, $props),
+            'form' => $this->form($context, $props),
+            'site_logo' => $this->siteLogo($context),
+            'site_menu' => ['items' => $this->design->resolveMenu($context->tenant, $this->design->for($context->tenant), $context->baseUrl, $context->locale)],
             default => null,
         };
     }
@@ -97,7 +110,7 @@ class BlockDataResolver
 
         $items = [];
 
-        foreach ($page->items() as $record) {
+        foreach ($this->languages->overlayMany($collection, $page->items(), $context->locale) as $record) {
             $items[] = [
                 'id' => (int) $record['id'],
                 'title' => $display ? ($this->text($record[$display->name] ?? null) ?? "#{$record['id']}") : "#{$record['id']}",
@@ -112,6 +125,58 @@ class BlockDataResolver
             'items' => $items,
             'page' => $paginate ? $page->currentPage() : 1,
             'last_page' => $paginate ? $page->lastPage() : 1,
+        ];
+    }
+
+    /**
+     * The blocks of a saved section, resolved in the same context. Sections may contain
+     * sections; nesting is capped so a section that includes itself cannot loop.
+     *
+     * @param  array<string, mixed>  $props
+     * @return array{name: string, blocks: array<int, array<string, mixed>>}|null
+     */
+    private function pattern(RenderContext $context, array $props): ?array
+    {
+        if ($context->depth >= self::MAX_PATTERN_DEPTH || ! is_numeric($props['pattern'] ?? null)) {
+            return null;
+        }
+
+        $pattern = BlockPattern::withoutGlobalScope('tenant')
+            ->where('tenant_id', $context->tenant->id)
+            ->find((int) $props['pattern']);
+
+        return $pattern
+            ? ['name' => $pattern->name, 'blocks' => $this->resolveTree($context->nested(), $pattern->tree)]
+            : null;
+    }
+
+    /**
+     * Fields of a form block and, outside the editor, the token that lets visitors submit it.
+     *
+     * @param  array<string, mixed>  $props
+     * @return array<string, mixed>|null
+     */
+    private function form(RenderContext $context, array $props): ?array
+    {
+        $collection = Collection::withoutGlobalScope('tenant')
+            ->where('tenant_id', $context->tenant->id)
+            ->where('name', is_string($props['collection'] ?? null) ? $props['collection'] : '')
+            ->first();
+
+        return $collection
+            ? $this->forms->schema($context->tenant, $collection, (array) ($props['fields'] ?? []), withToken: ! $context->preview, notifyEmail: is_string($props['notify_email'] ?? null) ? $props['notify_email'] : null)
+            : null;
+    }
+
+    /**
+     * @return array{name: string, logo: string|null, url: string}
+     */
+    private function siteLogo(RenderContext $context): array
+    {
+        return [
+            'name' => $context->tenant->name,
+            'logo' => $this->design->for($context->tenant)->logo,
+            'url' => $context->baseUrl ?: '/',
         ];
     }
 

@@ -1,22 +1,47 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AutomationController;
 use App\Http\Controllers\Api\BlockController;
+use App\Http\Controllers\Api\BlockPatternController;
+use App\Http\Controllers\Api\BlockVersionController;
 use App\Http\Controllers\Api\CollectionController;
 use App\Http\Controllers\Api\CollectionFieldController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\FormSubmissionController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RecordController;
+use App\Http\Controllers\Api\SchemaController;
 use App\Http\Controllers\Api\SiteController;
+use App\Http\Controllers\Api\SiteMemberController;
+use App\Http\Controllers\Api\SiteSettingsController;
 use App\Http\Controllers\Api\Super\TenantController;
 use App\Http\Controllers\Api\TenantSessionController;
+use App\Http\Controllers\Api\TranslationController;
+use App\Http\Controllers\Api\V1\ContentController;
+use App\Http\Controllers\Api\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::name('api.')->group(function () {
     // Public site of a company (published pages only).
+    // Headless API of a company, authenticated with its API key.
+    Route::prefix('v1')->name('v1.')->middleware(['api.key', 'throttle:api-key'])->group(function () {
+        Route::get('collections', [ContentController::class, 'collections'])->name('collections');
+        Route::get('collections/{collection}/records', [ContentController::class, 'index'])->name('records.index');
+        Route::post('collections/{collection}/records', [ContentController::class, 'store'])->name('records.store');
+        Route::get('collections/{collection}/records/{record}', [ContentController::class, 'show'])->whereNumber('record')->name('records.show');
+        Route::put('collections/{collection}/records/{record}', [ContentController::class, 'update'])->whereNumber('record')->name('records.update');
+        Route::delete('collections/{collection}/records/{record}', [ContentController::class, 'destroy'])->whereNumber('record')->name('records.destroy');
+        Route::get('pages/{slug?}', [ContentController::class, 'page'])->name('pages.show');
+    });
+
+    Route::post('public/forms', FormSubmissionController::class)->middleware('throttle:10,1')->name('forms.submit');
+
     Route::middleware('throttle:120,1')->prefix('public/sites/{site}')->name('site.')->group(function () {
         Route::get('/', [SiteController::class, 'show'])->name('show');
         Route::get('pages/{slug?}', [SiteController::class, 'page'])->name('page');
@@ -52,6 +77,9 @@ Route::name('api.')->group(function () {
             Route::get('collections/{collection}', [CollectionController::class, 'show'])->middleware('can:content.view')->name('collections.show');
 
             Route::middleware('can:schema.manage')->scopeBindings()->group(function () {
+                Route::get('schema/export', [SchemaController::class, 'export'])->name('schema.export');
+                Route::post('schema/import', [SchemaController::class, 'import'])->name('schema.import');
+
                 Route::post('collections', [CollectionController::class, 'store'])->name('collections.store');
                 Route::put('collections/{collection}', [CollectionController::class, 'update'])->name('collections.update');
                 Route::delete('collections/{collection}', [CollectionController::class, 'destroy'])->name('collections.destroy');
@@ -71,6 +99,22 @@ Route::name('api.')->group(function () {
                 Route::delete('media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
             });
 
+            Route::get('patterns', [BlockPatternController::class, 'index'])->middleware('can:content.view')->name('patterns.index');
+            Route::middleware('can:content.manage')->group(function () {
+                Route::post('patterns', [BlockPatternController::class, 'store'])->name('patterns.store');
+                Route::put('patterns/{pattern}', [BlockPatternController::class, 'update'])->name('patterns.update');
+                Route::delete('patterns/{pattern}', [BlockPatternController::class, 'destroy'])->name('patterns.destroy');
+            });
+
+            // Drafts, publishing and revisions of block trees; permissions depend on the target.
+            Route::prefix('block-versions')->name('block-versions.')->group(function () {
+                Route::get('/', [BlockVersionController::class, 'show'])->name('show');
+                Route::put('draft', [BlockVersionController::class, 'saveDraft'])->name('draft');
+                Route::delete('draft', [BlockVersionController::class, 'discardDraft'])->name('discard');
+                Route::post('publish', [BlockVersionController::class, 'publish'])->name('publish');
+                Route::get('{version}', [BlockVersionController::class, 'revision'])->whereNumber('version')->name('revision');
+            });
+
             Route::post('blocks/resolve', [BlockController::class, 'resolve'])->middleware('can:content.view')->name('blocks.resolve');
 
             Route::prefix('collections/{collection}/records')->name('records.')->whereNumber('record')->group(function () {
@@ -78,14 +122,52 @@ Route::name('api.')->group(function () {
                     Route::get('/', [RecordController::class, 'index'])->name('index');
                     Route::get('options', [RecordController::class, 'options'])->name('options');
                     Route::get('{record}', [RecordController::class, 'show'])->name('show');
+                    Route::get('{record}/backlinks', [RecordController::class, 'backlinks'])->name('backlinks');
+                    Route::get('{record}/translations', [TranslationController::class, 'show'])->name('translations.show');
                 });
 
                 Route::middleware('can:content.manage')->group(function () {
                     Route::post('/', [RecordController::class, 'store'])->name('store');
                     Route::put('{record}', [RecordController::class, 'update'])->name('update');
                     Route::delete('{record}', [RecordController::class, 'destroy'])->name('destroy');
+                    Route::put('{record}/translations/{locale}', [TranslationController::class, 'update'])->where('locale', '[a-z]{2}')->name('translations.update');
                 });
             });
+
+            Route::middleware('can:api.manage')->group(function () {
+                Route::get('api-keys', [ApiKeyController::class, 'index'])->name('api-keys.index');
+                Route::post('api-keys', [ApiKeyController::class, 'store'])->name('api-keys.store');
+                Route::delete('api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('api-keys.destroy');
+            });
+
+            // Visitors with accounts on the company site.
+            Route::get('site-members', [SiteMemberController::class, 'index'])->middleware('can:content.view')->name('site-members.index');
+            Route::middleware('can:content.manage')->group(function () {
+                Route::put('site-members/{siteMember}', [SiteMemberController::class, 'update'])->name('site-members.update');
+                Route::delete('site-members/{siteMember}', [SiteMemberController::class, 'destroy'])->name('site-members.destroy');
+            });
+
+            Route::get('site-settings', [SiteSettingsController::class, 'show'])->middleware('can:content.view')->name('site-settings.show');
+            Route::put('site-settings', [SiteSettingsController::class, 'update'])->middleware('can:company.update')->name('site-settings.update');
+
+            // Logic without code: webhooks and automations (owners and admins).
+            Route::middleware('can:schema.manage')->group(function () {
+                Route::get('webhooks', [WebhookController::class, 'index'])->name('webhooks.index');
+                Route::post('webhooks', [WebhookController::class, 'store'])->name('webhooks.store');
+                Route::put('webhooks/{webhook}', [WebhookController::class, 'update'])->name('webhooks.update');
+                Route::delete('webhooks/{webhook}', [WebhookController::class, 'destroy'])->name('webhooks.destroy');
+                Route::post('webhooks/{webhook}/secret', [WebhookController::class, 'rotateSecret'])->name('webhooks.secret');
+                Route::post('webhooks/{webhook}/test', [WebhookController::class, 'test'])->name('webhooks.test');
+                Route::get('webhooks/{webhook}/deliveries', [WebhookController::class, 'deliveries'])->name('webhooks.deliveries');
+
+                Route::get('automations', [AutomationController::class, 'index'])->name('automations.index');
+                Route::post('automations', [AutomationController::class, 'store'])->name('automations.store');
+                Route::put('automations/{automation}', [AutomationController::class, 'update'])->name('automations.update');
+                Route::delete('automations/{automation}', [AutomationController::class, 'destroy'])->name('automations.destroy');
+                Route::get('automations/{automation}/runs', [AutomationController::class, 'runs'])->name('automations.runs');
+            });
+
+            Route::get('activity', [ActivityController::class, 'index'])->middleware('can:audit.view')->name('activity.index');
 
             Route::middleware('super')->prefix('super')->name('super.')->group(function () {
                 Route::get('tenants', [TenantController::class, 'index'])->name('tenants.index');

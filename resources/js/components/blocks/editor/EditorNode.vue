@@ -13,6 +13,10 @@ const props = defineProps<{ node: BlockNode }>();
 const editor = useBlockEditor();
 const definition = computed(() => blocks[props.node.type]);
 const isSelected = computed(() => editor.selectedId.value === props.node.id);
+// Hidden on the previewed device: dimmed, but still selectable to change that.
+const isHidden = computed(
+    () => props.node.hide?.includes(editor.device.value) ?? false,
+);
 
 // Nodes are reactive objects of the editor's tree, edited in place.
 const children = computed({
@@ -58,6 +62,7 @@ onBeforeUnmount(() => clearTimeout(timer));
     <div
         v-if="definition"
         class="group relative outline-offset-2"
+        :style="isHidden ? { opacity: 0.35 } : undefined"
         :class="
             isSelected
                 ? 'outline-2 outline-[var(--el-color-primary)] outline-solid'
@@ -71,6 +76,7 @@ onBeforeUnmount(() => clearTimeout(timer));
         >
             <el-icon class="block-handle cursor-move"><Rank /></el-icon>
             {{ definition.label }}
+            <span v-if="isHidden">· скрыт на этом устройстве</span>
         </div>
 
         <component :is="definition.component" :block="node.props" :data="data">

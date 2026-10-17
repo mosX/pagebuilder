@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use App\Support\Audit\ActivityLog;
 use App\Support\Media\MediaLibrary;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
@@ -49,6 +50,7 @@ class MediaController extends Controller
         abort_unless($file instanceof UploadedFile, 422);
 
         $media = $this->library->store($context->tenant(), $file, $request->user());
+        app(ActivityLog::class)->record('media.uploaded', $media->original_name);
 
         return response()->json(['message' => 'Файл загружен.', 'media' => $media->toApi()], 201);
     }
@@ -65,6 +67,7 @@ class MediaController extends Controller
     public function destroy(Media $media): JsonResponse
     {
         $this->library->delete($media);
+        app(ActivityLog::class)->record('media.deleted', $media->original_name);
 
         return response()->json(['message' => 'Файл удалён.']);
     }

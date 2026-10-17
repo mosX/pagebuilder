@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { srcset } from '@/blocks/images';
+
 defineProps<{
     block: {
         src: string;
@@ -14,15 +16,17 @@ defineProps<{
         <img
             v-if="block.src"
             :src="block.src"
+            :srcset="srcset(block.src)"
+            sizes="(min-width: 1024px) 1024px, 100vw"
             :alt="block.alt"
             class="h-auto w-full object-cover"
-            :class="{ 'rounded-lg': block.rounded }"
+            :class="{ 'rounded-site': block.rounded }"
             loading="lazy"
         />
         <div
             v-else
             class="flex aspect-video w-full items-center justify-center bg-gray-100 text-sm text-gray-400"
-            :class="{ 'rounded-lg': block.rounded }"
+            :class="{ 'rounded-site': block.rounded }"
         >
             Укажите адрес изображения
         </div>

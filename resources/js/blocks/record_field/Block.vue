@@ -48,13 +48,13 @@ const paragraphs = computed(() =>
 
             <h1
                 v-if="block.style === 'h1'"
-                class="text-4xl font-bold text-gray-900"
+                class="font-heading text-4xl font-bold text-ink"
             >
                 {{ data.value }}
             </h1>
             <h2
                 v-else-if="block.style === 'h2'"
-                class="text-2xl font-semibold text-gray-900"
+                class="font-heading text-2xl font-semibold text-ink"
             >
                 {{ data.value }}
             </h2>
@@ -62,7 +62,7 @@ const paragraphs = computed(() =>
                 v-else-if="block.style === 'image' && data.type === 'image'"
                 :src="data.value ?? ''"
                 alt=""
-                class="h-auto w-full rounded-lg object-cover"
+                class="h-auto w-full rounded-site object-cover"
             />
             <div
                 v-else-if="block.style === 'tags' && data.items.length"

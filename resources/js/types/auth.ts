@@ -17,7 +17,9 @@ export type Permission =
     | 'members.manage'
     | 'schema.manage'
     | 'content.view'
-    | 'content.manage';
+    | 'content.manage'
+    | 'audit.view'
+    | 'api.manage';
 
 export type TenantState = {
     current: { id: number; name: string; slug: string; site_url: string };

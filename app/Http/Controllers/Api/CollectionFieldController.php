@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CollectionFieldResource;
 use App\Models\Collection;
 use App\Models\CollectionField;
+use App\Support\Audit\ActivityLog;
 use App\Support\Collections\SchemaManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -59,6 +60,8 @@ class CollectionFieldController extends Controller
             'related_collection_id' => $type->isRelation() ? $data['related_collection_id'] : null,
         ]);
 
+        app(ActivityLog::class)->record('field.created', "{$collection->label} → {$field->label}", ['type' => $type->value]);
+
         return (new CollectionFieldResource($field->load('relatedCollection')))
             ->additional(['message' => "Поле «{$field->label}» добавлено."])
             ->response()
@@ -90,6 +93,8 @@ class CollectionFieldController extends Controller
             'options' => $options,
         ]);
 
+        app(ActivityLog::class)->record('field.updated', "{$collection->label} → {$field->label}");
+
         return response()->json([
             'message' => "Поле «{$field->label}» сохранено.",
             'field' => new CollectionFieldResource($field->load('relatedCollection')),
@@ -100,6 +105,7 @@ class CollectionFieldController extends Controller
     {
         $field->setRelation('collection', $collection);
         $this->schema->dropField($field);
+        app(ActivityLog::class)->record('field.deleted', "{$collection->label} → {$field->label}");
 
         return response()->json(['message' => "Поле «{$field->label}» удалено вместе с данными."]);
     }

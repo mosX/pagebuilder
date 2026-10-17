@@ -26,7 +26,8 @@ class SiteController extends Controller
         [$tenant] = $this->site($site);
         $page = $this->presenter->page($tenant, $slug);
 
-        abort_unless($page !== null, 404, 'Страница не найдена.');
+        // Pages for signed-in visitors are not part of the anonymous API.
+        abort_unless($page !== null && ! $page['members_only'], 404, 'Страница не найдена.');
 
         return response()->json($page);
     }

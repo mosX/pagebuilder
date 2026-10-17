@@ -73,6 +73,7 @@ class PagesCollection
             ['name' => 'description', 'label' => 'Описание (SEO)', 'type' => FieldType::Text],
             ['name' => 'content', 'label' => 'Содержимое', 'type' => FieldType::Blocks],
             ['name' => 'is_published', 'label' => 'Опубликована', 'type' => FieldType::Boolean],
+            ['name' => 'members_only', 'label' => 'Только для зарегистрированных', 'type' => FieldType::Boolean],
         ];
     }
 

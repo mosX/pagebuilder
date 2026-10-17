@@ -8,4 +8,17 @@
         Instrument Sans, ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
+
+    /*
+     * Company site theme. The site (and the editor canvas) set the --site-* variables
+     * from the company's theme settings; blocks use these tokens: bg-brand, text-brand,
+     * text-ink, bg-surface, rounded-site, font-heading, font-body.
+     */
+    --color-brand: var(--site-primary, #2563eb);
+    --color-brand-contrast: var(--site-primary-contrast, #ffffff);
+    --color-ink: var(--site-text, #111827);
+    --color-surface: var(--site-background, #ffffff);
+    --radius-site: var(--site-radius, 0.5rem);
+    --font-heading: var(--site-font-heading, var(--font-sans));
+    --font-body: var(--site-font-body, var(--font-sans));
 }

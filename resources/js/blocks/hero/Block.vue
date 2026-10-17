@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { resized } from '@/blocks/images';
+
 defineProps<{
     block: {
         title: string;
@@ -18,7 +20,7 @@ defineProps<{
         :style="{
             backgroundColor: block.background || '#1f2937',
             backgroundImage: block.image
-                ? `url(${JSON.stringify(block.image)})`
+                ? `url(${JSON.stringify(resized(block.image, 1920))})`
                 : undefined,
         }"
     >
@@ -27,7 +29,9 @@ defineProps<{
             class="relative mx-auto flex max-w-4xl flex-col gap-6"
             :class="block.align === 'center' ? 'items-center text-center' : ''"
         >
-            <h1 class="text-4xl font-bold md:text-5xl">{{ block.title }}</h1>
+            <h1 class="font-heading text-4xl font-bold @3xl:text-5xl">
+                {{ block.title }}
+            </h1>
             <p
                 v-if="block.subtitle"
                 class="max-w-2xl text-lg whitespace-pre-line opacity-90"
@@ -37,7 +41,7 @@ defineProps<{
             <a
                 v-if="block.button_label"
                 :href="block.button_url || '#'"
-                class="rounded-md bg-white px-6 py-3 font-medium text-gray-900 transition hover:bg-gray-100"
+                class="rounded-site bg-brand px-6 py-3 font-medium text-brand-contrast transition hover:bg-brand/90"
             >
                 {{ block.button_label }}
             </a>

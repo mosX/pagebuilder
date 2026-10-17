@@ -1,0 +1,43 @@
+{
+    "name": "form",
+    "label": "Форма",
+    "category": "data",
+    "icon": "EditPen",
+    "description": "Заявки посетителей сохраняются записями в выбранную коллекцию",
+    "data": "form",
+    "props": {
+        "collection": {
+            "type": "collection",
+            "label": "Сохранять в коллекцию",
+            "default": ""
+        },
+        "fields": {
+            "type": "fields",
+            "label": "Поля формы",
+            "of": "collection",
+            "default": [],
+            "help": "Обязательные поля коллекции добавляются в форму автоматически."
+        },
+        "title": {
+            "type": "text",
+            "label": "Заголовок",
+            "default": "Оставьте заявку"
+        },
+        "submit_label": {
+            "type": "text",
+            "label": "Текст кнопки",
+            "default": "Отправить"
+        },
+        "success_message": {
+            "type": "text",
+            "label": "Сообщение после отправки",
+            "default": "Спасибо! Мы свяжемся с вами."
+        },
+        "notify_email": {
+            "type": "text",
+            "label": "Уведомлять о заявках на email",
+            "default": "",
+            "help": "Необязательно. На этот адрес придёт письмо о каждой новой заявке."
+        }
+    }
+}

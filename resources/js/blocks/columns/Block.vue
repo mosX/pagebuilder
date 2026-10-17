@@ -9,9 +9,9 @@ const props = defineProps<{
 }>();
 
 const columns = {
-    '2': 'md:grid-cols-2',
-    '3': 'md:grid-cols-3',
-    '4': 'md:grid-cols-2 lg:grid-cols-4',
+    '2': '@3xl:grid-cols-2',
+    '3': '@3xl:grid-cols-3',
+    '4': '@3xl:grid-cols-2 @5xl:grid-cols-4',
 };
 
 const gap = { small: 'gap-3', medium: 'gap-6', large: 'gap-10' };

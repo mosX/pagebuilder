@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { Delete, Document, Plus, SetUp } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import {
+    Delete,
+    Document,
+    Download,
+    Plus,
+    SetUp,
+    Upload,
+} from '@element-plus/icons-vue';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useForm } from '@/composables/useForm';
 import { isValidationError, send } from '@/lib/http';
 import { toIdentifier } from '@/lib/identifier';
 import collectionsApi from '@/routes/api/collections';
+import { exportMethod, importMethod } from '@/routes/api/schema';
 import { useCollectionsStore } from '@/stores/collections';
 import { useSessionStore } from '@/stores/session';
 import type { CollectionSchema, MessageResponse } from '@/types';
@@ -15,6 +23,74 @@ const session = useSessionStore();
 const collections = useCollectionsStore();
 const router = useRouter();
 const loading = ref(true);
+const fileInput = ref<HTMLInputElement | null>(null);
+
+/** Downloads the structure of all collections (no data) as JSON. */
+async function exportSchema() {
+    const schema = await send<unknown>(exportMethod());
+    const url = URL.createObjectURL(
+        new Blob([JSON.stringify(schema, null, 2)], {
+            type: 'application/json',
+        }),
+    );
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `schema-${session.tenant?.current.slug ?? 'company'}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+type ImportReport = { created: string[]; skipped: string[]; errors: string[] };
+
+async function importSchema(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+
+    if (!file) {
+        return;
+    }
+
+    let schema: unknown;
+
+    try {
+        schema = JSON.parse(await file.text());
+    } catch {
+        ElMessage.error('Файл не похож на JSON.');
+
+        return;
+    }
+
+    try {
+        const result = await send<{ report: ImportReport }>(importMethod(), {
+            schema,
+        });
+        const { created, skipped, errors } = result.report;
+        const lines = [
+            `Создано: ${created.length}`,
+            ...created.map((item) => `  + ${item}`),
+            `Пропущено (уже есть): ${skipped.length}`,
+            ...(errors.length
+                ? [
+                      `Ошибки: ${errors.length}`,
+                      ...errors.map((item) => `  ! ${item}`),
+                  ]
+                : []),
+        ];
+        await collections.load();
+        await ElMessageBox.alert(lines.join('\n'), 'Импорт схемы', {
+            confirmButtonText: 'Готово',
+            customStyle: { whiteSpace: 'pre-wrap', maxWidth: '640px' },
+        });
+    } catch (error) {
+        if (isValidationError(error)) {
+            ElMessage.error(
+                error.response?.data.message ??
+                    'Не удалось импортировать схему.',
+            );
+        }
+    }
+}
 
 onMounted(async () => {
     try {
@@ -92,14 +168,24 @@ async function remove(collection: CollectionSchema) {
                     данных.
                 </p>
             </div>
-            <el-button
-                v-if="session.can('schema.manage')"
-                type="primary"
-                :icon="Plus"
-                @click="openCreate"
-            >
-                Создать коллекцию
-            </el-button>
+            <div v-if="session.can('schema.manage')" class="flex gap-2">
+                <el-button :icon="Download" @click="exportSchema"
+                    >Экспорт схемы</el-button
+                >
+                <el-button :icon="Upload" @click="fileInput?.click()"
+                    >Импорт</el-button
+                >
+                <input
+                    ref="fileInput"
+                    type="file"
+                    accept="application/json,.json"
+                    class="hidden"
+                    @change="importSchema"
+                />
+                <el-button type="primary" :icon="Plus" @click="openCreate">
+                    Создать коллекцию
+                </el-button>
+            </div>
         </div>
 
         <el-card shadow="never" body-class="!p-0">

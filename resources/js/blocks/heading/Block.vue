@@ -20,7 +20,7 @@ const align = { left: 'text-left', center: 'text-center', right: 'text-right' };
 <template>
     <component
         :is="block.level"
-        class="text-gray-900"
+        class="font-heading text-ink"
         :class="[size[block.level], align[block.align]]"
     >
         {{ block.text }}

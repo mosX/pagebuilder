@@ -1,0 +1,57 @@
+{
+    "name": "row",
+    "label": "Ряд",
+    "category": "layout",
+    "icon": "Grid",
+    "description": "Блоки в строку: логотип и меню, кнопки рядом",
+    "children": true,
+    "props": {
+        "justify": {
+            "type": "select",
+            "label": "Распределение",
+            "default": "between",
+            "options": [
+                {
+                    "value": "start",
+                    "label": "Слева"
+                },
+                {
+                    "value": "center",
+                    "label": "По центру"
+                },
+                {
+                    "value": "end",
+                    "label": "Справа"
+                },
+                {
+                    "value": "between",
+                    "label": "По краям"
+                }
+            ]
+        },
+        "gap": {
+            "type": "select",
+            "label": "Промежуток",
+            "default": "medium",
+            "options": [
+                {
+                    "value": "small",
+                    "label": "Маленький"
+                },
+                {
+                    "value": "medium",
+                    "label": "Средний"
+                },
+                {
+                    "value": "large",
+                    "label": "Большой"
+                }
+            ]
+        },
+        "stack_on_mobile": {
+            "type": "boolean",
+            "label": "В столбик на телефоне",
+            "default": false
+        }
+    }
+}

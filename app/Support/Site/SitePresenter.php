@@ -23,13 +23,15 @@ class SitePresenter
     public function __construct(
         private PagesCollection $pages,
         private BlockDataResolver $resolver,
+        private SiteLanguages $languages,
     ) {}
 
     /**
-     * @param  string  $baseUrl  '' on the company subdomain, '/site/{slug}' for the preview path.
+     * @param  string  $baseUrl  '' on the company subdomain, '/site/{slug}' for the preview path
+     *                           (plus '/{locale}' for an additional language).
      * @return array{name: string, slug: string, base_url: string, pages: array<int, array{title: string, slug: string, url: string}>}|null
      */
-    public function site(Tenant $tenant, string $baseUrl = ''): ?array
+    public function site(Tenant $tenant, string $baseUrl = '', ?string $locale = null): ?array
     {
         $collection = $this->pages->find($tenant);
 
@@ -37,25 +39,26 @@ class SitePresenter
             return null;
         }
 
-        $pages = DB::table($collection->table_name)
+        $rows = DB::table($collection->table_name)
             ->where('is_published', true)
             ->orderBy('id')
-            ->get(['title', 'slug'])
-            ->map(fn (object $row) => [
-                'title' => (string) ($row->title ?? ''),
-                'slug' => (string) ($row->slug ?? ''),
-                'url' => $this->url($baseUrl, (string) ($row->slug ?? '')),
-            ])
-            ->values()
+            ->get(['id', 'title', 'slug'])
+            ->map(fn (object $row) => (array) $row)
             ->all();
+
+        $pages = array_map(fn (array $row) => [
+            'title' => (string) ($row['title'] ?? ''),
+            'slug' => (string) ($row['slug'] ?? ''),
+            'url' => $this->url($baseUrl, (string) ($row['slug'] ?? '')),
+        ], $this->languages->overlayMany($collection, $rows, $locale));
 
         return ['name' => $tenant->name, 'slug' => $tenant->slug, 'base_url' => $baseUrl, 'pages' => $pages];
     }
 
     /**
-     * @return array{title: string, slug: string, description: string|null, blocks: array<int, array<string, mixed>>}|null
+     * @return array{title: string, slug: string, description: string|null, members_only: bool, blocks: array<int, array<string, mixed>>}|null
      */
-    public function page(Tenant $tenant, string $slug, string $baseUrl = '', int $listPage = 1): ?array
+    public function page(Tenant $tenant, string $slug, string $baseUrl = '', int $listPage = 1, ?string $locale = null): ?array
     {
         $collection = $this->pages->find($tenant);
 
@@ -67,12 +70,15 @@ class SitePresenter
             return null;
         }
 
-        $context = new RenderContext($tenant, $baseUrl, $collection, $page, $listPage);
+        $page = $this->languages->overlay($collection, $page, $locale);
+        $context = new RenderContext($tenant, $baseUrl, $collection, $page, $listPage, locale: $locale);
 
         return [
             'title' => is_string($page['title'] ?? null) ? $page['title'] : '',
             'slug' => $slug,
             'description' => is_string($page['description'] ?? null) ? $page['description'] : null,
+            // Shown to signed-in site visitors only.
+            'members_only' => (bool) ($page['members_only'] ?? false),
             'blocks' => $this->resolver->resolveTree($context, is_array($page['content'] ?? null) ? $page['content'] : []),
         ];
     }
@@ -80,9 +86,9 @@ class SitePresenter
     /**
      * A record of a collection published at /{path}/{slug}, rendered with the collection's template.
      *
-     * @return array{title: string, slug: string, description: string|null, blocks: array<int, array<string, mixed>>}|null
+     * @return array{title: string, slug: string, description: string|null, members_only: bool, blocks: array<int, array<string, mixed>>}|null
      */
-    public function recordPage(Tenant $tenant, string $path, string $slug, string $baseUrl = '', int $listPage = 1): ?array
+    public function recordPage(Tenant $tenant, string $path, string $slug, string $baseUrl = '', int $listPage = 1, ?string $locale = null): ?array
     {
         $collection = Collection::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenant->id)
@@ -103,13 +109,15 @@ class SitePresenter
             return null;
         }
 
+        $record = $this->languages->overlay($collection, $record, $locale);
         $display = $repository->displayField();
-        $context = new RenderContext($tenant, $baseUrl, $collection, $record, $listPage);
+        $context = new RenderContext($tenant, $baseUrl, $collection, $record, $listPage, locale: $locale);
 
         return [
             'title' => $display && is_scalar($record[$display->name] ?? null) ? (string) $record[$display->name] : "#{$record['id']}",
             'slug' => "{$path}/{$slug}",
             'description' => $this->description($collection, $record),
+            'members_only' => false,
             'blocks' => $this->resolver->resolveTree($context, $collection->site_template ?? []),
         ];
     }

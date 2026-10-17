@@ -1,0 +1,74 @@
+{
+    "name": "testimonials",
+    "label": "Отзывы",
+    "category": "text",
+    "icon": "ChatDotRound",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок блока",
+            "default": "Отзывы клиентов"
+        },
+        "columns": {
+            "type": "select",
+            "label": "Колонок",
+            "default": "3",
+            "options": [
+                {
+                    "value": "2",
+                    "label": "2"
+                },
+                {
+                    "value": "3",
+                    "label": "3"
+                },
+                {
+                    "value": "4",
+                    "label": "4"
+                }
+            ]
+        },
+        "items": {
+            "type": "list",
+            "label": "Отзывы",
+            "max": 24,
+            "itemLabel": "author",
+            "item": {
+                "quote": {
+                    "type": "textarea",
+                    "label": "Отзыв",
+                    "default": "Отличная работа!"
+                },
+                "author": {
+                    "type": "text",
+                    "label": "Автор",
+                    "default": "Имя Фамилия"
+                },
+                "role": {
+                    "type": "text",
+                    "label": "Должность / компания",
+                    "default": ""
+                },
+                "photo": {
+                    "type": "image",
+                    "label": "Фото",
+                    "default": ""
+                }
+            },
+            "default": [
+                {
+                    "quote": "Сделали сайт быстрее, чем обещали.",
+                    "author": "Анна",
+                    "role": "Кофейня «Утро»",
+                    "photo": ""
+                },
+                {
+                    "quote": "Удобно самим менять тексты и цены.",
+                    "author": "Максим",
+                    "role": "Автосервис",
+                    "photo": ""
+                }
+            ]
+        }
+    }
+}

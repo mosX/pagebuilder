@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { Picture } from '@element-plus/icons-vue';
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import type { PropSchema } from '@/blocks/registry';
+import ListInput from '@/components/blocks/editor/ListInput.vue';
+import RichTextEditor from '@/components/blocks/editor/RichTextEditor.vue';
 import MediaPicker from '@/components/media/MediaPicker.vue';
 import { useBlockEditor } from '@/components/blocks/editor/context';
 import { useCollectionsStore } from '@/stores/collections';
+import { usePatternsStore } from '@/stores/patterns';
 
 const props = defineProps<{
     schema: PropSchema;
@@ -16,6 +20,8 @@ const model = defineModel<unknown>({ required: true });
 const collections = useCollectionsStore();
 const editor = useBlockEditor();
 const pickerOpen = ref(false);
+const patterns = usePatternsStore();
+const router = useRouter();
 
 const fieldOptions = computed(() => {
     const name = props.schema.of ? props.siblings[props.schema.of] : null;
@@ -27,6 +33,30 @@ const fieldOptions = computed(() => {
             f.type !== 'blocks' &&
             (!props.schema.fieldTypes ||
                 props.schema.fieldTypes.includes(f.type)),
+    );
+});
+
+/** Fields a visitor can fill in a form. */
+const FORM_TYPES = [
+    'string',
+    'text',
+    'email',
+    'url',
+    'integer',
+    'decimal',
+    'boolean',
+    'date',
+    'datetime',
+    'select',
+];
+
+const formFieldOptions = computed(() => {
+    const name = props.schema.of ? props.siblings[props.schema.of] : null;
+    const collection =
+        typeof name === 'string' ? collections.find(name) : undefined;
+
+    return (collection?.fields ?? []).filter((f) =>
+        FORM_TYPES.includes(f.type),
     );
 });
 
@@ -78,6 +108,12 @@ const recordFieldOptions = computed(() =>
         type="textarea"
         :autosize="{ minRows: 3, maxRows: 10 }"
     />
+    <ListInput
+        v-else-if="schema.type === 'list'"
+        v-model="model"
+        :schema="schema"
+    />
+    <RichTextEditor v-else-if="schema.type === 'richtext'" v-model="model" />
     <el-input-number
         v-else-if="schema.type === 'number'"
         v-model="model as number"
@@ -132,6 +168,22 @@ const recordFieldOptions = computed(() =>
         />
     </el-select>
     <el-select
+        v-else-if="schema.type === 'fields'"
+        :model-value="Array.isArray(model) ? model : []"
+        multiple
+        clearable
+        :disabled="!formFieldOptions.length"
+        placeholder="Выберите поля"
+        @update:model-value="(value: string[]) => (model = value)"
+    >
+        <el-option
+            v-for="f in formFieldOptions"
+            :key="f.name"
+            :label="f.is_required ? `${f.label} (обязательное)` : f.label"
+            :value="f.name"
+        />
+    </el-select>
+    <el-select
         v-else-if="schema.type === 'record_field'"
         v-model="model as string"
         clearable
@@ -144,6 +196,34 @@ const recordFieldOptions = computed(() =>
             :value="f.name"
         />
     </el-select>
+    <div
+        v-else-if="schema.type === 'pattern'"
+        class="flex w-full flex-col gap-2"
+    >
+        <el-select v-model="model as number" placeholder="Выберите секцию">
+            <el-option
+                v-for="p in patterns.items"
+                :key="p.id"
+                :label="p.name"
+                :value="p.id"
+            />
+        </el-select>
+        <el-button
+            v-if="model"
+            size="small"
+            @click="
+                router.push({
+                    name: 'patterns.edit',
+                    params: { id: Number(model) },
+                })
+            "
+        >
+            Редактировать секцию
+        </el-button>
+        <div class="text-xs text-[var(--el-text-color-secondary)]">
+            Изменения секции появятся на всех страницах, где она используется.
+        </div>
+    </div>
     <div
         v-if="schema.help"
         class="mt-1 w-full text-xs leading-snug text-[var(--el-text-color-secondary)]"

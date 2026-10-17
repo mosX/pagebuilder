@@ -1,0 +1,77 @@
+{
+    "name": "pricing",
+    "label": "Тарифы",
+    "category": "text",
+    "icon": "PriceTag",
+    "description": "Карточки тарифов с ценой и списком",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок блока",
+            "default": "Тарифы"
+        },
+        "items": {
+            "type": "list",
+            "label": "Тарифы",
+            "max": 6,
+            "itemLabel": "name",
+            "item": {
+                "name": {
+                    "type": "text",
+                    "label": "Название",
+                    "default": "Тариф"
+                },
+                "price": {
+                    "type": "text",
+                    "label": "Цена",
+                    "default": "1000 ₴"
+                },
+                "period": {
+                    "type": "text",
+                    "label": "Период",
+                    "default": "в месяц"
+                },
+                "features": {
+                    "type": "textarea",
+                    "label": "Что входит (по строке)",
+                    "default": "Пункт 1\nПункт 2"
+                },
+                "button_label": {
+                    "type": "text",
+                    "label": "Текст кнопки",
+                    "default": "Выбрать"
+                },
+                "button_url": {
+                    "type": "url",
+                    "label": "Ссылка кнопки",
+                    "default": "#"
+                },
+                "highlighted": {
+                    "type": "boolean",
+                    "label": "Выделить",
+                    "default": false
+                }
+            },
+            "default": [
+                {
+                    "name": "Старт",
+                    "price": "990 ₴",
+                    "period": "в месяц",
+                    "features": "1 сайт\nПочтовая поддержка",
+                    "button_label": "Выбрать",
+                    "button_url": "#",
+                    "highlighted": false
+                },
+                {
+                    "name": "Бизнес",
+                    "price": "2490 ₴",
+                    "period": "в месяц",
+                    "features": "5 сайтов\nСвои домены\nПриоритетная поддержка",
+                    "button_label": "Выбрать",
+                    "button_url": "#",
+                    "highlighted": true
+                }
+            ]
+        }
+    }
+}

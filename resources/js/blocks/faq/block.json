@@ -1,0 +1,42 @@
+{
+    "name": "faq",
+    "label": "Вопросы и ответы",
+    "category": "text",
+    "icon": "QuestionFilled",
+    "description": "Раскрывающиеся вопросы (FAQ)",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок блока",
+            "default": "Частые вопросы"
+        },
+        "items": {
+            "type": "list",
+            "label": "Вопросы",
+            "max": 30,
+            "itemLabel": "question",
+            "item": {
+                "question": {
+                    "type": "text",
+                    "label": "Вопрос",
+                    "default": "Вопрос"
+                },
+                "answer": {
+                    "type": "textarea",
+                    "label": "Ответ",
+                    "default": "Ответ на вопрос."
+                }
+            },
+            "default": [
+                {
+                    "question": "Сколько это стоит?",
+                    "answer": "Стоимость зависит от объёма работ — напишите нам."
+                },
+                {
+                    "question": "Как быстро вы отвечаете?",
+                    "answer": "В течение одного рабочего дня."
+                }
+            ]
+        }
+    }
+}

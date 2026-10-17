@@ -32,6 +32,8 @@ class DemoCollectionsSeeder extends Seeder
 
         $this->showArticlesOnHome($pages->ensure($tenant));
         $this->publishArticles($tenant, $blocks);
+        $this->addContactForm($tenant, $schema, $pages->ensure($tenant));
+        $this->addShowcaseBlocks($pages->ensure($tenant));
     }
 
     private function createBlog(SchemaManager $schema, Tenant $tenant): void
@@ -87,6 +89,78 @@ class DemoCollectionsSeeder extends Seeder
     /**
      * Publishes articles as the /articles site section with a record page template, once.
      */
+    /**
+     * A "leads" collection and a contact form on the home page that fills it, once.
+     */
+    /**
+     * Features after the hero and an FAQ before the last section of the home page, once.
+     */
+    private function addShowcaseBlocks(Collection $pages): void
+    {
+        $repository = new RecordRepository($pages);
+        $id = (int) DB::table($pages->table_name)->where('slug', PagesCollection::HOME_SLUG)->value('id');
+        $home = $id ? $repository->find($id) : null;
+        $content = is_array($home['content'] ?? null) ? $home['content'] : [];
+
+        if (! $home || collect($content)->contains('type', 'features')) {
+            return;
+        }
+
+        $section = fn (array $child, string $background = '') => [
+            'type' => 'section',
+            'props' => ['padding' => 'large', 'width' => 'wide', 'background' => $background],
+            'children' => [$child],
+        ];
+
+        array_splice($content, 1, 0, [$section(['type' => 'features', 'props' => ['title' => 'Почему мы']])]);
+        array_splice($content, count($content) - 1, 0, [$section(['type' => 'faq', 'props' => []], '#f9fafb')]);
+
+        $repository->update($id, ['content' => $content]);
+        $this->command->info('Home page shows features and FAQ blocks.');
+    }
+
+    private function addContactForm(Tenant $tenant, SchemaManager $schema, Collection $pages): void
+    {
+        $exists = Collection::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->where('name', 'leads')->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $leads = $schema->createCollection($tenant, ['name' => 'leads', 'label' => 'Заявки', 'description' => 'Заявки с формы на сайте']);
+        $schema->addField($leads, ['name' => 'name', 'label' => 'Имя', 'type' => FieldType::String, 'is_required' => true]);
+        $schema->addField($leads, ['name' => 'email', 'label' => 'Email', 'type' => FieldType::Email, 'is_required' => true]);
+        $schema->addField($leads, ['name' => 'message', 'label' => 'Сообщение', 'type' => FieldType::Text]);
+        $schema->addField($leads, ['name' => 'status', 'label' => 'Статус', 'type' => FieldType::Select, 'options' => ['choices' => ['Новая', 'В работе', 'Закрыта']]]);
+
+        $repository = new RecordRepository($pages);
+        $id = (int) DB::table($pages->table_name)->where('slug', PagesCollection::HOME_SLUG)->value('id');
+        $home = $id ? $repository->find($id) : null;
+
+        if (! $home) {
+            return;
+        }
+
+        $content = is_array($home['content'] ?? null) ? $home['content'] : [];
+        $content[] = [
+            'type' => 'section',
+            'props' => ['padding' => 'large'],
+            'children' => [[
+                'type' => 'form',
+                'props' => [
+                    'collection' => 'leads',
+                    'fields' => ['name', 'email', 'message'],
+                    'title' => 'Связаться с нами',
+                    'submit_label' => 'Отправить',
+                    'success_message' => 'Спасибо! Мы ответим в течение дня.',
+                ],
+            ]],
+        ];
+
+        $repository->update($id, ['content' => $content]);
+        $this->command->info('Home page has a contact form that fills "Заявки".');
+    }
+
     private function publishArticles(Tenant $tenant, BlockRegistry $blocks): void
     {
         $articles = Collection::withoutGlobalScope('tenant')->where('tenant_id', $tenant->id)->where('name', 'articles')->first();

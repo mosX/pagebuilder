@@ -3,8 +3,13 @@
 namespace App\Support\Collections;
 
 use App\Enums\FieldType;
+use App\Events\RecordCreated;
+use App\Events\RecordDeleted;
+use App\Events\RecordUpdated;
 use App\Models\Collection;
 use App\Models\CollectionField;
+use App\Models\Translation;
+use App\Support\Automation\AutomationDepth;
 use App\Support\Blocks\BlockRegistry;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
@@ -169,7 +174,10 @@ class RecordRepository
             return $id;
         });
 
-        return (array) $this->find($id);
+        $record = (array) $this->find($id);
+        RecordCreated::dispatch($this->collection, $record, [], AutomationDepth::current());
+
+        return $record;
     }
 
     /**
@@ -179,19 +187,37 @@ class RecordRepository
     public function update(int $id, array $input): array
     {
         $data = $this->validate($input, $id);
+        $before = (array) $this->find($id);
 
         DB::transaction(function () use ($id, $data) {
             $this->query()->where('id', $id)->update([...$this->columns($data), 'updated_at' => now()]);
             $this->syncPivots($id, $data);
         });
 
-        return (array) $this->find($id);
+        $record = (array) $this->find($id);
+        $changes = array_values(array_filter(
+            array_keys($data),
+            fn (string $field) => json_encode($before[$field] ?? null) !== json_encode($record[$field] ?? null),
+        ));
+
+        if ($changes !== []) {
+            RecordUpdated::dispatch($this->collection, $record, $changes, AutomationDepth::current());
+        }
+
+        return $record;
     }
 
     public function delete(int $id): void
     {
+        $record = $this->find($id);
+
         // Pivot rows go away through their cascading foreign keys.
         $this->query()->where('id', $id)->delete();
+        Translation::withoutGlobalScope('tenant')->where('collection_id', $this->collection->id)->where('record_id', $id)->delete();
+
+        if ($record) {
+            RecordDeleted::dispatch($this->collection, $record, [], AutomationDepth::current());
+        }
     }
 
     public function exists(int $id): bool

@@ -9,10 +9,11 @@ defineProps<{
 }>();
 
 const variant = {
-    primary: 'rounded-md bg-blue-600 px-5 py-2.5 text-white hover:bg-blue-700',
+    primary:
+        'rounded-site bg-brand px-5 py-2.5 text-brand-contrast hover:bg-brand/90',
     outline:
-        'rounded-md border border-blue-600 px-5 py-2.5 text-blue-600 hover:bg-blue-50',
-    link: 'text-blue-600 underline hover:text-blue-800',
+        'rounded-site border border-brand px-5 py-2.5 text-brand hover:bg-brand/5',
+    link: 'text-brand underline hover:opacity-80',
 };
 
 const align = {

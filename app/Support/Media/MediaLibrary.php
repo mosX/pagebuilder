@@ -2,10 +2,12 @@
 
 namespace App\Support\Media;
 
+use App\Http\Controllers\ImageController;
 use App\Models\Media;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -59,6 +61,11 @@ class MediaLibrary
     public function delete(Media $media): void
     {
         Storage::disk($media->disk)->delete($media->path);
+
+        foreach (ImageController::WIDTHS as $width) {
+            File::delete(public_path("img/{$width}/{$media->path}"));
+        }
+
         $media->delete();
     }
 
@@ -68,5 +75,9 @@ class MediaLibrary
     public function deleteTenant(Tenant $tenant): void
     {
         Storage::disk($this->disk())->deleteDirectory("tenants/{$tenant->id}");
+
+        foreach (ImageController::WIDTHS as $width) {
+            File::deleteDirectory(public_path("img/{$width}/tenants/{$tenant->id}"));
+        }
     }
 }

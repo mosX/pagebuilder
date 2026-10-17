@@ -53,6 +53,19 @@ export const router = createRouter({
                     meta: { title: 'Медиатека', permission: 'content.view' },
                 },
                 {
+                    path: 'patterns',
+                    name: 'patterns',
+                    component: () => import('@/pages/admin/patterns/Index.vue'),
+                    meta: { title: 'Секции', permission: 'content.view' },
+                },
+                {
+                    path: 'patterns/:id',
+                    name: 'patterns.edit',
+                    component: () =>
+                        import('@/pages/admin/content/BlocksEditor.vue'),
+                    meta: { title: 'Секция', permission: 'content.manage' },
+                },
+                {
                     path: 'collections',
                     name: 'collections',
                     component: () =>
@@ -94,6 +107,60 @@ export const router = createRouter({
                     meta: {
                         title: 'Конструктор',
                         permission: 'content.manage',
+                    },
+                },
+                {
+                    path: 'site',
+                    name: 'site',
+                    component: () => import('@/pages/admin/site/Index.vue'),
+                    meta: { title: 'Сайт', permission: 'content.view' },
+                },
+                {
+                    path: 'site/:part(header|footer)',
+                    name: 'site.layout',
+                    component: () =>
+                        import('@/pages/admin/content/BlocksEditor.vue'),
+                    meta: {
+                        title: 'Шапка и подвал',
+                        permission: 'content.manage',
+                    },
+                },
+                {
+                    path: 'visitors',
+                    name: 'site-members',
+                    component: () =>
+                        import('@/pages/admin/site-members/Index.vue'),
+                    meta: { title: 'Посетители', permission: 'content.view' },
+                },
+                {
+                    path: 'automations',
+                    name: 'automations',
+                    component: () =>
+                        import('@/pages/admin/automations/Index.vue'),
+                    meta: {
+                        title: 'Автоматизации',
+                        permission: 'schema.manage',
+                    },
+                },
+                {
+                    path: 'webhooks',
+                    name: 'webhooks',
+                    component: () => import('@/pages/admin/webhooks/Index.vue'),
+                    meta: { title: 'Вебхуки', permission: 'schema.manage' },
+                },
+                {
+                    path: 'api-keys',
+                    name: 'api-keys',
+                    component: () => import('@/pages/admin/api-keys/Index.vue'),
+                    meta: { title: 'API-ключи', permission: 'api.manage' },
+                },
+                {
+                    path: 'activity',
+                    name: 'activity',
+                    component: () => import('@/pages/admin/activity/Index.vue'),
+                    meta: {
+                        title: 'Журнал действий',
+                        permission: 'audit.view',
                     },
                 },
                 {

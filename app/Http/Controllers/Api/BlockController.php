@@ -44,7 +44,7 @@ class BlockController extends Controller
             ? (new RecordRepository($collection))->find($request->integer('record_id'))
             : null;
 
-        $render = new RenderContext($tenant, $tenant->siteUrl(), $collection, $record);
+        $render = new RenderContext($tenant, $tenant->siteUrl(), $collection, $record, preview: true);
 
         return response()->json(['data' => $resolver->resolve($render, $node)]);
     }

@@ -1,0 +1,74 @@
+{
+    "name": "features",
+    "label": "Преимущества",
+    "category": "text",
+    "icon": "Medal",
+    "description": "Карточки с иконкой, заголовком и текстом",
+    "props": {
+        "title": {
+            "type": "text",
+            "label": "Заголовок блока",
+            "default": ""
+        },
+        "columns": {
+            "type": "select",
+            "label": "Колонок",
+            "default": "3",
+            "options": [
+                {
+                    "value": "2",
+                    "label": "2"
+                },
+                {
+                    "value": "3",
+                    "label": "3"
+                },
+                {
+                    "value": "4",
+                    "label": "4"
+                }
+            ]
+        },
+        "items": {
+            "type": "list",
+            "label": "Карточки",
+            "max": 24,
+            "itemLabel": "title",
+            "item": {
+                "icon": {
+                    "type": "text",
+                    "label": "Иконка (эмодзи)",
+                    "default": "⭐",
+                    "max": 8
+                },
+                "title": {
+                    "type": "text",
+                    "label": "Заголовок",
+                    "default": "Преимущество"
+                },
+                "text": {
+                    "type": "textarea",
+                    "label": "Текст",
+                    "default": "Короткое описание."
+                }
+            },
+            "default": [
+                {
+                    "icon": "⚡",
+                    "title": "Быстро",
+                    "text": "Запускаемся за несколько дней."
+                },
+                {
+                    "icon": "🛡️",
+                    "title": "Надёжно",
+                    "text": "Гарантия на все работы."
+                },
+                {
+                    "icon": "💬",
+                    "title": "На связи",
+                    "text": "Отвечаем на вопросы каждый день."
+                }
+            ]
+        }
+    }
+}

@@ -1,0 +1,28 @@
+{
+    "name": "site_languages",
+    "label": "Языки",
+    "category": "site",
+    "icon": "ChatLineRound",
+    "description": "Переключатель языков сайта (языки задаются в разделе «Сайт»)",
+    "props": {
+        "variant": {
+            "type": "select",
+            "label": "Вид",
+            "default": "codes",
+            "options": [
+                {
+                    "value": "codes",
+                    "label": "Коды (RU · EN)"
+                },
+                {
+                    "value": "names",
+                    "label": "Названия (Русский · English)"
+                },
+                {
+                    "value": "dropdown",
+                    "label": "Выпадающий список"
+                }
+            ]
+        }
+    }
+}

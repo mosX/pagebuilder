@@ -2,43 +2,82 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Tenant;
 use App\Support\Collections\PagesCollection;
+use App\Support\Site\CurrentSite;
 use App\Support\Site\SitePresenter;
-use App\Support\Site\SsrRenderer;
+use App\Support\Site\SiteRenderer;
+use App\Support\Site\SiteResolver;
+use App\Support\Site\SiteSearch;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Str;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Serves company sites as server-rendered HTML: on the company subdomain
- * ({slug}.{site_domain}) and, for previews, under /site/{slug} on the platform domain.
+ * ({slug}.{site_domain}) and, for previews, under /site/{slug} on the platform domain,
+ * optionally prefixed with a language: /{locale}/{page}.
  */
 class SitePageController extends Controller
 {
     public function __construct(
+        private SiteResolver $sites,
         private SitePresenter $presenter,
-        private SsrRenderer $ssr,
+        private SiteRenderer $renderer,
     ) {}
 
-    public function host(Request $request, string $site, ?string $slug = null): Response
+    public function page(Request $request): Response|RedirectResponse
     {
-        return $this->render($request, $site, null, $slug, '', preview: false);
+        try {
+            $site = $this->sites->resolve($request);
+        } catch (NotFoundHttpException $e) {
+            // "/{locale}/..." where the first segment is not a language of this site:
+            // it is a page slug ("/it") or a section path ("/it/{record}").
+            $first = $request->route('locale');
+
+            if (! is_string($first)) {
+                throw $e;
+            }
+
+            $site = $this->sites->resolve($request, ignoreLocale: true);
+            $slug = $request->route('slug');
+
+            return is_string($slug)
+                ? $this->renderRecord($request, $site, $first, $slug)
+                : $this->renderPage($request, $site, $first);
+        }
+
+        $slug = $request->route('slug');
+
+        return $this->renderPage($request, $site, is_string($slug) ? $slug : PagesCollection::HOME_SLUG);
     }
 
-    public function hostRecord(Request $request, string $site, string $path, string $record): Response
+    public function record(Request $request): Response
     {
-        return $this->render($request, $site, $path, $record, '', preview: false);
+        return $this->renderRecord($request, $this->sites->resolve($request), (string) $request->route('path'), (string) $request->route('record'));
     }
 
-    public function preview(Request $request, string $site, ?string $slug = null): Response
+    public function search(Request $request, SiteSearch $search): Response
     {
-        return $this->render($request, $site, null, $slug, "/site/{$site}", preview: true);
-    }
+        $site = $this->sites->resolve($request);
+        $query = trim($request->string('q')->limit(100, '')->toString());
 
-    public function previewRecord(Request $request, string $site, string $path, string $record): Response
-    {
-        return $this->render($request, $site, $path, $record, "/site/{$site}", preview: true);
+        return $this->renderer->render($site, [
+            'title' => 'Поиск',
+            'slug' => 'search',
+            'description' => null,
+            'blocks' => [[
+                'id' => 'search',
+                'type' => 'search_results',
+                'props' => (object) [],
+                'data' => [
+                    'action' => $site->url('search'),
+                    'query' => $query,
+                    'min_length' => SiteSearch::MIN_LENGTH,
+                    'results' => $search->search($site, $query),
+                ],
+            ]],
+        ], 'search', indexable: false);
     }
 
     public function notFound(): never
@@ -46,75 +85,31 @@ class SitePageController extends Controller
         abort(404);
     }
 
-    /**
-     * @param  string|null  $path  Site path of a published collection, or null for a regular page.
-     */
-    private function render(Request $request, string $site, ?string $path, ?string $slug, string $baseUrl, bool $preview): Response
+    private function renderPage(Request $request, CurrentSite $site, string $slug): Response|RedirectResponse
     {
-        $tenant = Tenant::where('slug', $site)->where('is_active', true)->first();
-        $info = $tenant ? $this->presenter->site($tenant, $baseUrl) : null;
+        $page = $this->presenter->page($site->tenant, $slug, $site->baseUrl, $this->listPage($request), $site->locale());
 
-        abort_unless($tenant && $info, 404);
-
-        $slug = $slug ?: PagesCollection::HOME_SLUG;
-        $listPage = max(1, $request->integer('page', 1));
-
-        $page = $path === null
-            ? $this->presenter->page($tenant, $slug, $baseUrl, $listPage)
-            : $this->presenter->recordPage($tenant, $path, $slug, $baseUrl, $listPage);
-
-        $payload = ['site' => $info, 'page' => $page];
-
-        return response()->view('site', [
-            'payload' => $payload,
-            'html' => $this->ssr->render($payload),
-            'meta' => $this->meta($tenant, $info['name'], $path === null ? $slug : "{$path}/{$slug}", $page, $preview),
-        ], $page ? 200 : 404);
-    }
-
-    /**
-     * @param  array{title: string, description: string|null, blocks: array<int, array<string, mixed>>}|null  $page
-     * @return array{title: string, description: string, canonical: string, image: string|null, site_name: string, noindex: bool}
-     */
-    private function meta(Tenant $tenant, string $siteName, string $slug, ?array $page, bool $preview): array
-    {
-        $canonical = $tenant->siteUrl().$this->presenter->url('', $slug);
-        $image = $page ? $this->firstImage($page['blocks']) : null;
-
-        return [
-            'title' => $page ? trim("{$page['title']} — {$siteName}", ' —') : "Страница не найдена — {$siteName}",
-            'description' => Str::limit($page['description'] ?? $siteName, 300),
-            'canonical' => $canonical,
-            'image' => $image ? url($image) : null,
-            'site_name' => $siteName,
-            // Previews on the platform domain must not compete with the real site.
-            'noindex' => $preview || ! $page,
-        ];
-    }
-
-    /**
-     * The first picture on the page, used as the social preview image.
-     *
-     * @param  array<int, array<string, mixed>>  $blocks
-     */
-    private function firstImage(array $blocks): ?string
-    {
-        foreach ($blocks as $block) {
-            $props = (array) ($block['props'] ?? []);
-            $data = is_array($block['data'] ?? null) ? $block['data'] : [];
-            $src = $props['image'] ?? $props['src'] ?? (($data['type'] ?? null) === 'image' ? ($data['value'] ?? null) : null);
-
-            if (is_string($src) && $src !== '') {
-                return $src;
-            }
-
-            $nested = is_array($block['children'] ?? null) ? $this->firstImage($block['children']) : null;
-
-            if ($nested) {
-                return $nested;
+        // Pages for signed-in visitors: guests are sent to sign in, or get a 404 when the site has no accounts.
+        if ($page && $page['members_only'] && ! $site->member) {
+            if (! $site->account['enabled']) {
+                $page = null;
+            } else {
+                return redirect($site->absolute($site->url('account/login').'?redirect='.urlencode($request->getRequestUri())));
             }
         }
 
-        return null;
+        return $this->renderer->render($site, $page, $slug === PagesCollection::HOME_SLUG ? '' : $slug);
+    }
+
+    private function renderRecord(Request $request, CurrentSite $site, string $path, string $record): Response
+    {
+        $page = $this->presenter->recordPage($site->tenant, $path, $record, $site->baseUrl, $this->listPage($request), $site->locale());
+
+        return $this->renderer->render($site, $page, "{$path}/{$record}");
+    }
+
+    private function listPage(Request $request): int
+    {
+        return max(1, $request->integer('page', 1));
     }
 }

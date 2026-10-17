@@ -1,0 +1,9 @@
+{
+    "name": "search_results",
+    "label": "Результаты поиска",
+    "category": "site",
+    "icon": "Search",
+    "description": "Служебный блок страницы поиска",
+    "hidden": true,
+    "props": {}
+}

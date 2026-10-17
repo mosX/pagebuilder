@@ -1,0 +1,15 @@
+{
+    "name": "pattern",
+    "label": "Секция",
+    "category": "saved",
+    "icon": "CopyDocument",
+    "description": "Сохранённая секция: правка секции меняет её на всех страницах",
+    "data": "pattern",
+    "props": {
+        "pattern": {
+            "type": "pattern",
+            "label": "Секция",
+            "default": null
+        }
+    }
+}

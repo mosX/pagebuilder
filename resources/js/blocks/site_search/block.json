@@ -1,0 +1,29 @@
+{
+    "name": "site_search",
+    "label": "Поиск",
+    "category": "site",
+    "icon": "Search",
+    "description": "Поле поиска по страницам и разделам сайта",
+    "props": {
+        "placeholder": {
+            "type": "text",
+            "label": "Подсказка в поле",
+            "default": "Поиск по сайту"
+        },
+        "variant": {
+            "type": "select",
+            "label": "Вид",
+            "default": "field",
+            "options": [
+                {
+                    "value": "field",
+                    "label": "Поле с кнопкой"
+                },
+                {
+                    "value": "compact",
+                    "label": "Компактное поле"
+                }
+            ]
+        }
+    }
+}

@@ -11,4 +11,6 @@ enum Permission: string
     case SchemaManage = 'schema.manage';
     case ContentView = 'content.view';
     case ContentManage = 'content.manage';
+    case AuditView = 'audit.view';
+    case ApiManage = 'api.manage';
 }

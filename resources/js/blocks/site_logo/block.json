@@ -1,0 +1,34 @@
+{
+    "name": "site_logo",
+    "label": "Логотип",
+    "category": "site",
+    "icon": "Flag",
+    "description": "Логотип или название компании со ссылкой на главную",
+    "data": "site_logo",
+    "props": {
+        "size": {
+            "type": "select",
+            "label": "Размер",
+            "default": "medium",
+            "options": [
+                {
+                    "value": "small",
+                    "label": "Маленький"
+                },
+                {
+                    "value": "medium",
+                    "label": "Средний"
+                },
+                {
+                    "value": "large",
+                    "label": "Большой"
+                }
+            ]
+        },
+        "show_name": {
+            "type": "boolean",
+            "label": "Показывать название рядом с логотипом",
+            "default": true
+        }
+    }
+}

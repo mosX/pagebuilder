@@ -1,0 +1,19 @@
+{
+    "name": "video",
+    "label": "Видео",
+    "category": "media",
+    "icon": "VideoPlay",
+    "description": "YouTube или Vimeo",
+    "props": {
+        "url": {
+            "type": "url",
+            "label": "Ссылка на YouTube или Vimeo",
+            "default": ""
+        },
+        "caption": {
+            "type": "text",
+            "label": "Подпись",
+            "default": ""
+        }
+    }
+}

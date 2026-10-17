@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { blocks } from '@/blocks/registry';
+import { blocks, visibilityClass } from '@/blocks/registry';
 import type { BlockNode } from '@/blocks/registry';
 
 const props = defineProps<{ node: BlockNode }>();
@@ -14,6 +14,7 @@ const definition = computed(() => blocks[props.node.type]);
         v-if="definition"
         :block="node.props"
         :data="node.data"
+        :class="visibilityClass(node)"
     >
         <template v-if="definition.children" #default="{ containerClass }">
             <div :class="containerClass">

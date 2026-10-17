@@ -1,15 +1,22 @@
 <script setup lang="ts">
 import {
     ArrowDown,
+    Avatar,
+    Brush,
     Coin,
+    Connection,
+    CopyDocument,
     Document,
     Expand,
     Fold,
+    Key,
+    MagicStick,
     Monitor,
     Odometer,
     OfficeBuilding,
     Picture,
     Setting,
+    Tickets,
     User,
     UserFilled,
 } from '@element-plus/icons-vue';
@@ -64,9 +71,19 @@ const groups = computed<MenuGroup[]>(() => {
                 ...(session.can('content.view')
                     ? [
                           {
+                              path: '/admin/patterns',
+                              label: 'Секции',
+                              icon: CopyDocument,
+                          },
+                          {
                               path: '/admin/media',
                               label: 'Медиатека',
                               icon: Picture,
+                          },
+                          {
+                              path: '/admin/visitors',
+                              label: 'Посетители',
+                              icon: Avatar,
                           },
                       ]
                     : []),
@@ -75,6 +92,12 @@ const groups = computed<MenuGroup[]>(() => {
         {
             title: 'Настройки',
             items: visible([
+                {
+                    path: '/admin/site',
+                    label: 'Сайт',
+                    icon: Brush,
+                    show: session.can('content.view'),
+                },
                 {
                     path: '/admin/collections',
                     label: 'Коллекции',
@@ -92,6 +115,30 @@ const groups = computed<MenuGroup[]>(() => {
                     label: 'Компания',
                     icon: Setting,
                     show: session.can('company.view'),
+                },
+                {
+                    path: '/admin/automations',
+                    label: 'Автоматизации',
+                    icon: MagicStick,
+                    show: session.can('schema.manage'),
+                },
+                {
+                    path: '/admin/webhooks',
+                    label: 'Вебхуки',
+                    icon: Connection,
+                    show: session.can('schema.manage'),
+                },
+                {
+                    path: '/admin/api-keys',
+                    label: 'API-ключи',
+                    icon: Key,
+                    show: session.can('api.manage'),
+                },
+                {
+                    path: '/admin/activity',
+                    label: 'Журнал действий',
+                    icon: Tickets,
+                    show: session.can('audit.view'),
                 },
             ]),
         },

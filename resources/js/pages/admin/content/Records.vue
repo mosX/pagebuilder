@@ -22,6 +22,7 @@ import type {
     CollectionSchema,
     MessageResponse,
     Paginated,
+    RelationValue,
 } from '@/types';
 
 const MAX_COLUMNS = 6;
@@ -81,7 +82,103 @@ onMounted(async () => {
     collection.value = result.collection;
     document.title = `${result.collection.label} - ${import.meta.env.VITE_APP_NAME}`;
     await loadRecords();
+
+    // Opened from a related record: show that record right away.
+    const linked = Number(route.query.record);
+
+    if (linked) {
+        openRecord(
+            await send<CollectionRecord>(
+                records.show({ collection: name, record: linked }),
+            ),
+        );
+    }
+
+    // "+ Добавить" in a related record: a new record linked to it.
+    if (route.query.new && route.query.link_field && route.query.link_id) {
+        link.value = {
+            field: String(route.query.link_field),
+            record: {
+                id: Number(route.query.link_id),
+                label: String(
+                    route.query.link_label ?? `#${route.query.link_id}`,
+                ),
+            },
+        };
+        editing.value = null;
+        drawerOpen.value = true;
+    }
 });
+
+// Collections that reference themselves (category → parent category) can be shown as a tree.
+const treeField = computed(() =>
+    collection.value?.fields.find(
+        (f) => f.type === 'belongs_to' && f.related_collection?.name === name,
+    ),
+);
+const treeMode = ref(false);
+const tree = ref<TreeRow[]>([]);
+
+type TreeRow = CollectionRecord & { children?: TreeRow[] };
+
+async function loadTree() {
+    const field = treeField.value;
+
+    if (!field) {
+        return;
+    }
+
+    loading.value = true;
+
+    try {
+        // All records (up to 1000) are needed to build the tree.
+        const all: CollectionRecord[] = [];
+
+        for (let p = 1; p <= 10; p++) {
+            const result = await send<Paginated<CollectionRecord>>(
+                records.index(name),
+                {
+                    per_page: 100,
+                    page: p,
+                    sort: 'id',
+                    direction: 'asc',
+                },
+            );
+            all.push(...result.data);
+
+            if (p >= result.last_page) {
+                break;
+            }
+        }
+
+        const rows = new Map<number, TreeRow>(all.map((r) => [r.id, { ...r }]));
+        const roots: TreeRow[] = [];
+
+        for (const row of rows.values()) {
+            const parent = row[field.name] as { id: number } | null;
+            const target = parent ? rows.get(parent.id) : undefined;
+
+            if (target && target !== row) {
+                (target.children ??= []).push(row);
+            } else {
+                roots.push(row);
+            }
+        }
+
+        tree.value = roots;
+    } finally {
+        loading.value = false;
+    }
+}
+
+function toggleTree(value: boolean) {
+    treeMode.value = value;
+    void (value ? loadTree() : loadRecords());
+}
+
+function reload() {
+    return treeMode.value ? loadTree() : loadRecords();
+}
 
 function onSort({
     prop,
@@ -103,8 +200,10 @@ function onSearch() {
 
 const drawerOpen = ref(false);
 const editing = ref<CollectionRecord | null>(null);
+const link = ref<{ field: string; record: RelationValue } | null>(null);
 
 function openRecord(record: CollectionRecord | null) {
+    link.value = null;
     editing.value = record;
     drawerOpen.value = true;
 }
@@ -114,7 +213,7 @@ async function remove(record: CollectionRecord) {
         records.destroy({ collection: name, record: record.id }),
     );
     ElMessage.success(result.message);
-    await loadRecords();
+    await reload();
 }
 </script>
 
@@ -130,7 +229,15 @@ async function remove(record: CollectionRecord) {
                     {{ collection.description }}
                 </p>
             </div>
-            <div class="flex gap-2">
+            <div class="flex items-center gap-2">
+                <el-switch
+                    v-if="treeField"
+                    :model-value="treeMode"
+                    active-text="Деревом"
+                    @update:model-value="
+                        (value: unknown) => toggleTree(Boolean(value))
+                    "
+                />
                 <el-input
                     v-model="query.search"
                     placeholder="Поиск"
@@ -174,8 +281,9 @@ async function remove(record: CollectionRecord) {
         <el-card shadow="never" body-class="!p-0">
             <el-table
                 v-loading="loading"
-                :data="page?.data ?? []"
+                :data="treeMode ? tree : (page?.data ?? [])"
                 row-key="id"
+                :default-expand-all="treeMode"
                 empty-text="Записей пока нет"
                 @sort-change="onSort"
                 @row-dblclick="(row: CollectionRecord) => openRecord(row)"
@@ -235,7 +343,10 @@ async function remove(record: CollectionRecord) {
             </el-table>
         </el-card>
 
-        <div v-if="page && page.last_page > 1" class="mt-4 flex justify-end">
+        <div
+            v-if="!treeMode && page && page.last_page > 1"
+            class="mt-4 flex justify-end"
+        >
             <el-pagination
                 layout="total, prev, pager, next"
                 :total="page.total"
@@ -255,8 +366,9 @@ async function remove(record: CollectionRecord) {
             v-model="drawerOpen"
             :collection="collection"
             :record="editing"
+            :link="link"
             :readonly="!canManage"
-            @saved="loadRecords"
+            @saved="reload"
         />
     </div>
 </template>

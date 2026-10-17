@@ -1,0 +1,70 @@
+{
+    "name": "gallery",
+    "label": "Галерея",
+    "category": "media",
+    "icon": "PictureRounded",
+    "props": {
+        "columns": {
+            "type": "select",
+            "label": "Колонок",
+            "default": "3",
+            "options": [
+                {
+                    "value": "2",
+                    "label": "2"
+                },
+                {
+                    "value": "3",
+                    "label": "3"
+                },
+                {
+                    "value": "4",
+                    "label": "4"
+                }
+            ]
+        },
+        "ratio": {
+            "type": "select",
+            "label": "Пропорции",
+            "default": "square",
+            "options": [
+                {
+                    "value": "square",
+                    "label": "Квадрат"
+                },
+                {
+                    "value": "landscape",
+                    "label": "4:3"
+                },
+                {
+                    "value": "auto",
+                    "label": "Как есть"
+                }
+            ]
+        },
+        "items": {
+            "type": "list",
+            "label": "Изображения",
+            "max": 48,
+            "itemLabel": "caption",
+            "item": {
+                "src": {
+                    "type": "image",
+                    "label": "Изображение",
+                    "default": ""
+                },
+                "alt": {
+                    "type": "text",
+                    "label": "Альтернативный текст",
+                    "default": ""
+                },
+                "caption": {
+                    "type": "text",
+                    "label": "Подпись",
+                    "default": ""
+                }
+            },
+            "default": []
+        }
+    }
+}

@@ -3,12 +3,38 @@
     "label": "Текст",
     "category": "text",
     "icon": "Document",
-    "description": "Абзацы текста",
+    "description": "Форматированный текст: абзацы, заголовки, списки, ссылки",
     "props": {
         "text": {
-            "type": "textarea",
+            "type": "richtext",
             "label": "Текст",
-            "default": "Текст абзаца. Пустая строка начинает новый абзац."
+            "default": {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": "Текст абзаца. Выделите слово, чтобы сделать его "
+                            },
+                            {
+                                "type": "text",
+                                "text": "жирным",
+                                "marks": [
+                                    {
+                                        "type": "bold"
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "text",
+                                "text": " или добавить ссылку."
+                            }
+                        ]
+                    }
+                ]
+            }
         },
         "size": {
             "type": "select",

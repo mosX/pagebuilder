@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CollectionResource;
 use App\Models\Collection;
 use App\Models\CollectionField;
+use App\Support\Audit\ActivityLog;
 use App\Support\Blocks\BlockRegistry;
 use App\Support\Collections\SchemaManager;
+use App\Support\Site\SiteLanguages;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -63,6 +65,7 @@ class CollectionController extends Controller
         ]);
 
         $collection = $this->schema->createCollection($tenant, $data);
+        app(ActivityLog::class)->record('collection.created', $collection->label);
 
         return (new CollectionResource($collection->load('fields')))
             ->additional(['message' => "Коллекция «{$collection->label}» создана."])
@@ -84,6 +87,7 @@ class CollectionController extends Controller
         ]);
 
         $collection->update($data);
+        app(ActivityLog::class)->record('collection.updated', $collection->label);
 
         return response()->json([
             'message' => 'Коллекция сохранена.',
@@ -113,11 +117,14 @@ class CollectionController extends Controller
             'site_path' => [
                 'nullable', 'string', 'max:40', 'regex:/^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/',
                 Rule::unique('collections', 'site_path')->where('tenant_id', $collection->tenant_id)->ignore($collection->id),
+                // Taken by service pages and language prefixes of the site.
+                Rule::notIn(['search', 'account', ...array_keys(SiteLanguages::LOCALES)]),
             ],
             'site_slug_field' => ['nullable', 'required_with:site_path', Rule::in($slugFields)],
             'site_published_field' => ['nullable', Rule::in($booleanFields)],
         ], [
             'site_path.regex' => 'Путь: латиница в нижнем регистре, цифры и дефисы.',
+            'site_path.not_in' => 'Этот путь занят служебными страницами сайта или языками.',
             'site_slug_field.in' => 'Адрес записи берётся из id или из уникального текстового/числового поля.',
         ]);
 
@@ -126,6 +133,7 @@ class CollectionController extends Controller
             'site_slug_field' => isset($data['site_path']) ? $data['site_slug_field'] : null,
             'site_published_field' => isset($data['site_path']) ? ($data['site_published_field'] ?? null) : null,
         ])->save();
+        app(ActivityLog::class)->record('collection.site_updated', $collection->label, ['path' => $collection->site_path]);
 
         return response()->json([
             'message' => $collection->site_path ? 'Раздел сайта сохранён.' : 'Коллекция снята с сайта.',
@@ -155,6 +163,7 @@ class CollectionController extends Controller
     public function destroy(Collection $collection): JsonResponse
     {
         $this->schema->dropCollection($collection);
+        app(ActivityLog::class)->record('collection.deleted', $collection->label);
 
         return response()->json(['message' => "Коллекция «{$collection->label}» удалена вместе с данными."]);
     }

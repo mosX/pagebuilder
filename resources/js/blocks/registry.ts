@@ -10,6 +10,7 @@ export type PropSchema = {
     type:
         | 'text'
         | 'textarea'
+        | 'richtext'
         | 'number'
         | 'boolean'
         | 'select'
@@ -18,11 +19,15 @@ export type PropSchema = {
         | 'image'
         | 'collection'
         | 'field'
-        | 'record_field';
+        | 'fields'
+        | 'record_field'
+        | 'pattern'
+        | 'list';
     label: string;
     default?: unknown;
     options?: { value: string; label: string }[];
     min?: number;
+    /** Upper bound of a number, or the most items of a list. */
     max?: number;
     step?: number;
     /** For `field`: the sibling prop holding the collection name. */
@@ -30,6 +35,10 @@ export type PropSchema = {
     /** For `field`: only fields of these types. */
     fieldTypes?: string[];
     help?: string;
+    /** For `list`: the props of one item. */
+    item?: Record<string, PropSchema>;
+    /** For `list`: the item prop shown as the item's title in the editor. */
+    itemLabel?: string;
 };
 
 export type BlockSchema = {
@@ -42,16 +51,39 @@ export type BlockSchema = {
     children?: boolean;
     /** Blocks whose content comes from company data, resolved by the server. */
     data?: string;
+    /** Service blocks the server places on generated pages (search, account); not in the palette. */
+    hidden?: boolean;
     props: Record<string, PropSchema>;
 };
 
 export type BlockDefinition = BlockSchema & { component: Component };
+
+export type Device = 'desktop' | 'tablet' | 'mobile';
+
+export const devices: { key: Device; label: string }[] = [
+    { key: 'mobile', label: 'Телефон' },
+    { key: 'tablet', label: 'Планшет' },
+    { key: 'desktop', label: 'Компьютер' },
+];
+
+/**
+ * Container-query classes that hide a block per device. Pages and the editor canvas are
+ * `@container`s, so the editor's device preview behaves exactly like real screens.
+ * Literal strings, so Tailwind generates them.
+ */
+export const hideClasses: Record<Device, string> = {
+    mobile: '@max-3xl:hidden',
+    tablet: '@3xl:@max-5xl:hidden',
+    desktop: '@5xl:hidden',
+};
 
 export type BlockNode = {
     id: string;
     type: string;
     props: Record<string, unknown>;
     children?: BlockNode[];
+    /** Devices the block is hidden on. */
+    hide?: Device[];
     /** Server-resolved data of data blocks (public site only, never saved). */
     data?: unknown;
 };
@@ -61,6 +93,7 @@ export const categories = [
     { key: 'text', label: 'Текст' },
     { key: 'media', label: 'Медиа' },
     { key: 'data', label: 'Данные' },
+    { key: 'site', label: 'Сайт' },
     /** Only offered while editing a record page template. */
     { key: 'record', label: 'Запись' },
 ];
@@ -139,6 +172,10 @@ export function normalizeTree(tree: unknown): BlockNode[] {
             node.children = normalizeTree(raw.children);
         }
 
+        if (Array.isArray(raw.hide) && raw.hide.length) {
+            node.hide = raw.hide.filter((d): d is Device => d in hideClasses);
+        }
+
         if (raw.data !== undefined) {
             node.data = raw.data;
         }
@@ -155,6 +192,7 @@ export function cloneNode(node: BlockNode): BlockNode {
         id: newId(),
         type: node.type,
         props: structuredClone(node.props),
+        ...(node.hide?.length ? { hide: [...node.hide] } : {}),
         ...(node.children ? { children: node.children.map(cloneNode) } : {}),
     };
 }
@@ -187,10 +225,15 @@ export function locate(
  * The tree as it is saved: no resolved data.
  */
 export function serializeTree(tree: BlockNode[]): BlockNode[] {
-    return tree.map(({ id, type, props, children }) => ({
+    return tree.map(({ id, type, props, children, hide }) => ({
         id,
         type,
         props,
+        ...(hide?.length ? { hide } : {}),
         ...(children ? { children: serializeTree(children) } : {}),
     }));
+}
+
+export function visibilityClass(node: BlockNode): string {
+    return (node.hide ?? []).map((device) => hideClasses[device]).join(' ');
 }

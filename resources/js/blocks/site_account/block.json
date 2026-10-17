@@ -1,0 +1,34 @@
+{
+    "name": "site_account",
+    "label": "Вход / кабинет",
+    "category": "site",
+    "icon": "User",
+    "description": "Ссылка на вход для посетителей, после входа — на личный кабинет",
+    "props": {
+        "login_label": {
+            "type": "text",
+            "label": "Текст для гостей",
+            "default": "Войти"
+        },
+        "show_register": {
+            "type": "boolean",
+            "label": "Показывать ссылку «Регистрация»",
+            "default": false
+        },
+        "variant": {
+            "type": "select",
+            "label": "Стиль",
+            "default": "link",
+            "options": [
+                {
+                    "value": "link",
+                    "label": "Ссылка"
+                },
+                {
+                    "value": "button",
+                    "label": "Кнопка"
+                }
+            ]
+        }
+    }
+}

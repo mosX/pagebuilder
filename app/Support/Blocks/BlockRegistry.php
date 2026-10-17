@@ -18,6 +18,8 @@ class BlockRegistry
 
     public const MAX_NODES = 500;
 
+    public const DEVICES = ['mobile', 'tablet', 'desktop'];
+
     /** @var array<string, array<string, mixed>>|null */
     private ?array $definitions = null;
 
@@ -107,7 +109,8 @@ class BlockRegistry
         $type = is_array($node) ? ($node['type'] ?? null) : null;
         $definition = is_string($type) ? $this->get($type) : null;
 
-        if (! is_array($node) || ! $definition) {
+        // Service blocks (search results, account forms) live on generated pages only.
+        if (! is_array($node) || ! $definition || ! empty($definition['hidden'])) {
             $this->fail($attribute, 'Неизвестный тип блока: '.(is_string($type) ? $type : '?').'.');
         }
 
@@ -129,6 +132,13 @@ class BlockRegistry
             'props' => (object) $cleanProps,
         ];
 
+        // Devices the block is hidden on.
+        $hide = is_array($node['hide'] ?? null) ? array_values(array_unique(array_intersect($node['hide'], self::DEVICES))) : [];
+
+        if ($hide !== []) {
+            $clean['hide'] = $hide;
+        }
+
         if (! empty($definition['children'])) {
             $children = $node['children'] ?? [];
             $clean['children'] = is_array($children) && array_is_list($children)
@@ -149,16 +159,48 @@ class BlockRegistry
 
         return match ($prop['type'] ?? null) {
             'text' => is_scalar($value) ? Str::limit((string) $value, (int) ($prop['max'] ?? 500), '') : $default,
+            'richtext' => (new RichText($this))->sanitize($value ?? $default),
             'textarea' => is_scalar($value) ? Str::limit((string) $value, (int) ($prop['max'] ?? 20000), '') : $default,
             'number' => is_numeric($value) ? $this->number($prop, $value) : $default,
             'boolean' => is_bool($value) ? $value : (bool) $default,
             'select' => in_array($value, array_column((array) ($prop['options'] ?? []), 'value'), true) ? $value : $default,
             'color' => is_string($value) && preg_match('/^#[0-9a-fA-F]{3,8}$/', $value) ? $value : ($value === '' ? '' : $default),
             'url', 'image' => is_string($value) ? $this->safeUrl($value) : $default,
+            'pattern' => is_numeric($value) && (int) $value > 0 ? (int) $value : null,
             'collection' => is_string($value) && in_array($value, $collections, true) ? $value : '',
+            'fields' => is_array($value) ? array_slice(array_values(array_unique(array_filter($value, fn ($v) => is_string($v) && preg_match('/^[a-z][a-z0-9_]{0,23}$/', $v)))), 0, 30) : [],
             'field', 'record_field' => is_string($value) && preg_match('/^[a-z][a-z0-9_]{0,23}$/', $value) ? $value : '',
+            'list' => $this->sanitizeItems($prop, $value, $collections),
             default => $default,
         };
+    }
+
+    /**
+     * A repeatable group of props (FAQ items, plans, gallery images): every item is
+     * sanitized with the item schema; items cannot contain lists themselves.
+     *
+     * @param  array<string, mixed>  $prop
+     * @param  array<int, string>  $collections
+     * @return list<array<string, mixed>>
+     */
+    private function sanitizeItems(array $prop, mixed $value, array $collections): array
+    {
+        /** @var array<string, array<string, mixed>> $schema */
+        $schema = array_filter((array) ($prop['item'] ?? []), fn ($item) => is_array($item) && ($item['type'] ?? null) !== 'list');
+        $items = is_array($value) && array_is_list($value) ? $value : (array) ($prop['default'] ?? []);
+        $result = [];
+
+        foreach (array_slice(array_filter($items, 'is_array'), 0, (int) ($prop['max'] ?? 50)) as $item) {
+            $clean = [];
+
+            foreach ($schema as $key => $itemProp) {
+                $clean[$key] = $this->sanitizeProp($itemProp, $item[$key] ?? null, $collections);
+            }
+
+            $result[] = $clean;
+        }
+
+        return $result;
     }
 
     /**
